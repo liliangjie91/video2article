@@ -1,44 +1,93 @@
 """Stage 4: 所有材料 → 最终文章"""
 
+import json
 import os
 import logging
 from llm import chat, set_log_dir
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """你是一位优秀的非虚构长文作者，擅长撰写知识性和观点性兼备的文章。你的文章有深度、有观点、读起来流畅自然。
+SYSTEM_PROMPT = """
+你是一位优秀的非虚构长文作者，擅长撰写知识性和观点性兼备的文章。
 
 ## 写作任务
+基于提供的结构分析与深度挖掘笔记，撰写完整文章。
 
-你将收到以下材料：
-1. 视频字幕的预处理文稿
-2. 文稿的结构分析（主题分段、论证骨架）
-3. 深度挖掘笔记（每段的深层分析）
+---
 
-请基于这些材料撰写一篇完整的文章。
+## 【硬性字数限制（必须严格遵守）】
+- 最终全文字数必须在 4000–6000 字之间
+- 不得低于 3800 字，不得超过 6200 字
+- 若超过上限，必须压缩表达后再输出
 
-## 写作要求
+---
 
-**风格**：根据内容类型选择——
-- 科普类（科学、技术、自然）：解释性报道风格，清晰、准确、引人入胜
-- 历史类（历史事件、人物、文化）：叙事评论风格，有故事感、有历史纵深
+## 【原创性与改写约束（必须严格执行）】
+1. 不得直接复用输入中的原句（连续15字以上视为复用）
+2. 必须对所有内容进行“重写表达”（同义改写 + 结构重组）
+3. 保留核心事实，但表达方式要寻求改变
+4. 与输入文本的整体重复度不得超过 50%
+5. 优先使用：
+   - 句式重构（长句→短句 / 逻辑重排）
+   - 概念归纳（多句→一句总结）
+   - 视角转换（叙述→分析）
 
-**结构**：
-- 一个吸引人的标题（用 # 标记）
-- 开头段落点出文章的核心问题或引人思考的矛盾，不要平铺直叙
-- 用 ## 小标题组织文章主干
-- 结尾要有总结性和留给人思考的空间
+---
 
-**深度融入**：
-- 将挖掘笔记中的洞见自然融入文章，不要生硬地写成"补充说明"或"背景知识"栏目
-- 背景知识应该在叙述中被自然带出，观点应该在分析中流露
+## 【写作策略（必须执行）】
+在写作前进行字数预算：
+- 引言：300–400字
+- 每个小节：400–700字
+- 结尾：300–400字
 
-**字数**：2000-4000字（根据材料丰度自适应，不要强行凑字数）
+---
 
-**语言**：中文书面语，流畅自然，有杂志长文质感"""
+## 【信息压缩原则】
+当信息过多时：
+1. 合并重复观点
+2. 案例最多保留1个
+3. 删除非必要背景
+4. 禁止对同一概念重复解释
+
+---
+
+## 【结构要求】
+- 使用 # 标题
+- 开头提出问题或矛盾
+- 使用 ## 小标题组织
+- 结尾总结并留有思考空间
+
+---
+
+## 【语言要求】
+中文书面语，表达克制，避免口语化和冗余修辞
+
+---
+
+## 【输出前强制自检（必须执行）】
+1. 统计全文字数：
+   - >6000：压缩
+   - <4000：补充
+2. 检查是否存在连续复用原文（>15字）：
+   - 如存在，必须改写
+3. 检查重复表达：
+   - 删除或合并
+4. 确保整体重复度 < 50%
+
+---
+"""
 
 
-def run(preprocessed_path: str, structure_path: str, insights_path: str, output_dir: str, tier: str = "best") -> str:
+def _extract_sentences(structure: dict) -> str:
+    """Extract and join all sentences from structure segments."""
+    segments = structure.get("segments", [])
+    lines = []
+    for seg in segments:
+        lines.extend(seg.get("sentences", []))
+    return "\n".join(lines)
+
+
+def run(structure_path: str, insights_path: str, output_dir: str, tier: str = "best") -> str:
     """Run Stage 4. Returns path to 04_article.md."""
     output_path = os.path.join(output_dir, "04_article.md")
     if os.path.exists(output_path):
@@ -47,19 +96,17 @@ def run(preprocessed_path: str, structure_path: str, insights_path: str, output_
 
     os.makedirs(output_dir, exist_ok=True)
 
-    with open(preprocessed_path, "r", encoding="utf-8") as f:
-        preprocessed = f.read()
     with open(structure_path, "r", encoding="utf-8") as f:
-        structure = f.read()
+        structure_data = json.load(f)
     with open(insights_path, "r", encoding="utf-8") as f:
         insights = f.read()
 
+    # preprocessed = _extract_sentences(structure_data)
+    structure_raw = json.dumps(structure_data, indent=2, ensure_ascii=False)
+
     prompt_parts = [
-        "## 预处理后的文稿",
-        preprocessed,
-        "",
-        "## 结构分析",
-        structure,
+        "## 结构分析，内含原文：sentences",
+        structure_raw,
         "",
         "## 深度挖掘笔记",
         insights,

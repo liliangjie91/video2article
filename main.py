@@ -38,8 +38,8 @@ def cmd_article(args):
 
     pp = preprocess.run(args.subtitle, out, tier=args.tier)
     st = structure.run(pp, out, tier=args.tier)
-    ins = insights.run(pp, st, out, tier=args.tier)
-    syn = synthesize.run(pp, st, ins, out, tier=args.tier)
+    ins = insights.run(st, out, tier=args.tier)
+    syn = synthesize.run(st, ins, out, tier=args.tier)
     log.info("Article complete: %s", syn)
 
 
@@ -82,8 +82,8 @@ def cmd_full(args):
     # Step 1
     pp = preprocess.run(srt_path, out, tier=args.tier)
     st = structure.run(pp, out, tier=args.tier)
-    ins = insights.run(pp, st, out, tier=args.tier)
-    syn = synthesize.run(pp, st, ins, out, tier=args.tier)
+    ins = insights.run(st, out, tier=args.tier)
+    syn = synthesize.run(st, ins, out, tier=args.tier)
     # Step 2
     ss_dir = os.path.join(out, "screenshots")
     ss_list = extract_screenshots(args.video, st, ss_dir)
@@ -122,24 +122,24 @@ def cmd_structure(args):
 def cmd_insights(args):
     from pipeline import insights
 
-    out = os.path.dirname(os.path.abspath(args.preprocessed))
+    out = os.path.dirname(os.path.abspath(args.structure))
 
     if args.dry_run:
         log.info("[dry-run] insights → %s", out)
         return
-    ins = insights.run(args.preprocessed, args.structure, out, tier=args.tier)
+    ins = insights.run(args.structure, out, tier=args.tier)
     log.info("Insights complete: %s", ins)
 
 
 def cmd_synthesize(args):
     from pipeline import synthesize
 
-    out = os.path.dirname(os.path.abspath(args.preprocessed))
+    out = os.path.dirname(os.path.abspath(args.structure))
 
     if args.dry_run:
         log.info("[dry-run] synthesize → %s", out)
         return
-    syn = synthesize.run(args.preprocessed, args.structure, args.insights, out, tier=args.tier)
+    syn = synthesize.run(args.structure, args.insights, out, tier=args.tier)
     log.info("Synthesize complete: %s", syn)
 
 
@@ -236,7 +236,7 @@ def main():
     p.add_argument("subtitle", help="字幕文件路径")
     p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
+    p.add_argument("--tier", choices=["fast", "best", "top"], default="fast", help="模型档位")
     p.set_defaults(func=cmd_preprocess)
 
     # structure
@@ -248,7 +248,6 @@ def main():
 
     # insights
     p = sub.add_parser("insights", help="[单阶段] 深度挖掘")
-    p.add_argument("preprocessed", help="01_preprocessed.txt 路径")
     p.add_argument("structure", help="02_structure.json 路径")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
     p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
@@ -256,7 +255,6 @@ def main():
 
     # synthesize
     p = sub.add_parser("synthesize", help="[单阶段] 合成撰写")
-    p.add_argument("preprocessed", help="01_preprocessed.txt 路径")
     p.add_argument("structure", help="02_structure.json 路径")
     p.add_argument("insights", help="03_insights.md 路径")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
