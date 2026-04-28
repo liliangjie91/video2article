@@ -74,6 +74,8 @@ python main.py synthesize <01_preprocessed.txt> <02_structure.json> <03_insights
 # 周边
 python main.py stt <video.mp4>
 python main.py speak <article.md>
+python main.py review <article.md>                    # 文章审阅 (单篇)
+python main.py review <article1.md> <article2.md>     # 文章对比 (多篇)
 ```
 
 所有命令支持 `--dry-run` 参数进行空跑验证。

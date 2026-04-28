@@ -143,6 +143,35 @@ def cmd_synthesize(args):
     log.info("Synthesize complete: %s", syn)
 
 
+def cmd_simple(args):
+    """字幕 → 文章 (一步到位，用于快速产出或对比)"""
+    from pipeline.simple import run as simple_run
+
+    name = os.path.splitext(os.path.basename(args.subtitle))[0]
+    out = _output_dir(name, args.output_dir)
+
+    if args.dry_run:
+        log.info("[dry-run] simple %s → %s", args.subtitle, out)
+        return
+
+    r = simple_run(args.subtitle, out, tier=args.tier)
+    log.info("Simple article complete: %s", r)
+
+
+def cmd_review(args):
+    """文章审阅与对比 (Stage 5)"""
+    from pipeline.review import run as review_run
+
+    out = args.output_dir or os.path.dirname(os.path.abspath(args.articles[0]))
+
+    if args.dry_run:
+        log.info("[dry-run] Would review %d article(s) → %s", len(args.articles), out)
+        return
+
+    r = review_run(args.articles, out, tier=args.tier)
+    log.info("Review complete: %s", r)
+
+
 # ── Peripheral commands ─────────────────────────────────────────
 
 
@@ -170,7 +199,6 @@ def cmd_speak(args):
     sp = speak_run(args.article, out)
     log.info("Speak complete: %s", sp)
 
-
 # ── Parser setup ────────────────────────────────────────────────
 
 
@@ -185,7 +213,7 @@ def main():
     p.add_argument("subtitle", help="字幕文件路径 (.srt/.vtt)")
     p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--tier", choices=["fast", "best"], default="best", help="模型档位")
+    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     p.set_defaults(func=cmd_article)
 
     # illustrate
@@ -200,7 +228,7 @@ def main():
     p.add_argument("video", help="视频文件路径")
     p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--tier", choices=["fast", "best"], default="best", help="模型档位")
+    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     p.set_defaults(func=cmd_full)
 
     # preprocess
@@ -208,14 +236,14 @@ def main():
     p.add_argument("subtitle", help="字幕文件路径")
     p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--tier", choices=["fast", "best"], default="best", help="模型档位")
+    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     p.set_defaults(func=cmd_preprocess)
 
     # structure
     p = sub.add_parser("structure", help="[单阶段] 结构识别")
     p.add_argument("preprocessed", help="01_preprocessed.txt 路径")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--tier", choices=["fast", "best"], default="best", help="模型档位")
+    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     p.set_defaults(func=cmd_structure)
 
     # insights
@@ -223,7 +251,7 @@ def main():
     p.add_argument("preprocessed", help="01_preprocessed.txt 路径")
     p.add_argument("structure", help="02_structure.json 路径")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--tier", choices=["fast", "best"], default="best", help="模型档位")
+    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     p.set_defaults(func=cmd_insights)
 
     # synthesize
@@ -232,7 +260,7 @@ def main():
     p.add_argument("structure", help="02_structure.json 路径")
     p.add_argument("insights", help="03_insights.md 路径")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--tier", choices=["fast", "best"], default="best", help="模型档位")
+    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     p.set_defaults(func=cmd_synthesize)
 
     # stt
@@ -247,6 +275,22 @@ def main():
     p.add_argument("article", help="文章 .md 路径")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
     p.set_defaults(func=cmd_speak)
+
+    # simple
+    p = sub.add_parser("simple", help="字幕 → 文章 (一步到位，快速产出)")
+    p.add_argument("subtitle", help="字幕文件路径 (.srt/.vtt)")
+    p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
+    p.add_argument("--dry-run", action="store_true", help="只打印不执行")
+    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
+    p.set_defaults(func=cmd_simple)
+
+    # review
+    p = sub.add_parser("review", help="文章审阅与对比 (Stage 5)")
+    p.add_argument("articles", nargs="+", help="一个或多个文章 .md 路径")
+    p.add_argument("--output-dir", "-o", default=None, help="输出目录")
+    p.add_argument("--dry-run", action="store_true", help="只打印不执行")
+    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
+    p.set_defaults(func=cmd_review)
 
     args = parser.parse_args()
     args.func(args)

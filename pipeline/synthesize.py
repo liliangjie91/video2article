@@ -40,6 +40,11 @@ SYSTEM_PROMPT = """你是一位优秀的非虚构长文作者，擅长撰写知�
 
 def run(preprocessed_path: str, structure_path: str, insights_path: str, output_dir: str, tier: str = "best") -> str:
     """Run Stage 4. Returns path to 04_article.md."""
+    output_path = os.path.join(output_dir, "04_article.md")
+    if os.path.exists(output_path):
+        logger.info("Stage 4 output already exists, skipping: %s", output_path)
+        return output_path
+
     os.makedirs(output_dir, exist_ok=True)
 
     with open(preprocessed_path, "r", encoding="utf-8") as f:
@@ -64,9 +69,8 @@ def run(preprocessed_path: str, structure_path: str, insights_path: str, output_
     set_log_dir(os.path.join(output_dir, "llm_logs"))
     prompt = "\n\n".join(prompt_parts)
 
-    result = chat(prompt, tier=tier, system=SYSTEM_PROMPT)
+    result = chat(prompt, tier=tier, system=SYSTEM_PROMPT, step=4)
 
-    output_path = os.path.join(output_dir, "04_article.md")
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(result)
 

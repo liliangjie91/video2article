@@ -43,6 +43,11 @@ def _build_segment_prompt(segment: dict, text: str) -> str:
 
 def run(preprocessed_path: str, structure_path: str, output_dir: str, tier: str = "best") -> str:
     """Run Stage 3. Returns path to 03_insights.md."""
+    output_path = os.path.join(output_dir, "03_insights.md")
+    if os.path.exists(output_path):
+        logger.info("Stage 3 output already exists, skipping: %s", output_path)
+        return output_path
+
     os.makedirs(output_dir, exist_ok=True)
 
     with open(preprocessed_path, "r", encoding="utf-8") as f:
@@ -70,7 +75,7 @@ def run(preprocessed_path: str, structure_path: str, output_dir: str, tier: str 
         ]
         prompt = "\n".join(prompt_parts)
 
-        raw = chat(prompt, tier=tier, system=SYSTEM_PROMPT)
+        raw = chat(prompt, tier=tier, system=SYSTEM_PROMPT, step=3)
         parts.append(raw)
 
         if i < len(segments) - 1:
@@ -78,7 +83,6 @@ def run(preprocessed_path: str, structure_path: str, output_dir: str, tier: str 
 
     output = "\n".join(parts)
 
-    output_path = os.path.join(output_dir, "03_insights.md")
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(output)
 
