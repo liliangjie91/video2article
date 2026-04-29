@@ -12,7 +12,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 pip install litellm         # 必需 — LLM API 调用 (统一调度 100+ provider)
-pip install anthropic       # DFDC 等 Anthropic-format 自定义 provider 需要
 pip install faster-whisper   # STT 模块需要
 brew install ffmpeg         # 截图提取 + 音频提取需要
 ```
