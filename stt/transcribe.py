@@ -74,7 +74,7 @@ def transcribe(audio_path: str, output_dir: str, model_name: str = "large-v3-tur
 
 def run(video_path: str, model: str = "large-v3-turbo") -> str:
     """Full STT pipeline: video → SRT subtitle. Returns SRT path."""
-    tmp_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tmp", "srt")
+    tmp_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "output", "srt")
     os.makedirs(tmp_dir, exist_ok=True)
     audio_path = extract_audio(video_path, tmp_dir)
     srt_path = transcribe(audio_path, tmp_dir, model)
