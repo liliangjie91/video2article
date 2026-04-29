@@ -1,0 +1,114 @@
+# video2article
+
+**把视频里的口水话，变成值得读的长文。**
+
+你刷到一个视频，内容不错，但总觉得拖沓、散乱、看过就忘。  
+这个工具把视频字幕拆解、深挖、重组，输出一篇有骨架、有观点、有背景的深度文章。  
+再配上视频截图，就是一版像样的图文稿。
+
+## 它能做什么
+
+一行命令，从视频到文章：
+
+```bash
+python main.py sttarticle 演讲.mp4
+```
+
+也可以从字幕开始：
+
+```bash
+python main.py article 字幕.srt
+```
+
+## 快速开始
+
+```bash
+pip install -r requirements.txt
+brew install ffmpeg           # macOS
+```
+
+### 配置
+
+在 `config.ini` 中指定模型档位。支持所有 litellm 兼容的 provider（DeepSeek、OpenAI、Anthropic 等）。
+
+API 密钥放 `.env`（已 gitignore）：
+
+```ini
+DEEPSEEK_API_KEY=sk-...
+```
+
+## 管线
+
+```
+字幕/音频
+  │
+  ▼
+[STT] faster-whisper      → 00_subtitle.srt
+  │
+  ▼
+[Stage 1 预处理]           → 01_preprocessed.txt  清洗口语噪声
+[Stage 2 结构识别]         → 02_structure.json     语义分段 + 论证骨架
+[Stage 3 深度挖掘]    ◀──  → 03_insights.md        挖掘隐含假设/背景/关联
+[Stage 4 合成撰写]         → 04_article.md          成文
+  │
+  ▼ (可选)
+[视频截图 + 图文合成]      → 05_illustrated.md
+[文章 → 语音]             → TTS
+```
+
+每个阶段都可单独运行、替换，输出是普通文件，不锁死在特定流程。
+
+### Stage 3 是核心
+
+结构识别只是分段落，真正的价值在 Stage 3。它对每段做五个维度的分析：
+
+- **核心提炼** — 一句话说清楚本段在说什么
+- **隐含假设** — 说话者默认了什么前提
+- **背景补充** — 相关的历史、科学或文化背景
+- **延伸关联** — 和其他事件/理论的联系
+- **批判追问** — 换个视角能看到什么
+
+结果不是编辑成文，而是做笔记——方便你审阅、修改、补充，满意了再进 Stage 4 合成。
+
+## 常用命令
+
+```bash
+# 完整流程
+python main.py sttarticle <视频>               # 音视频 → 文章
+python main.py article    <字幕.srt>            # 字幕 → 文章
+python main.py full       <视频>                # 全流程（含图文）
+
+# 单步调试
+python main.py preprocess <字幕.srt>
+python main.py structure  <01_preprocessed.txt>
+python main.py insights   <02_structure.json>
+python main.py synthesize <02_structure.json> <03_insights.md>
+
+# 周边
+python main.py stt      <视频>                  # 仅语音转文字
+python main.py illustrate <文章.md> --video <视频> # 仅图文合成
+python main.py review   <文章.md>               # 审阅
+python main.py speak    <文章.md>               # 文字转语音
+
+所有命令支持 --dry-run 空跑。
+```
+
+## 输出目录
+
+```
+output/<来源>/
+├── 01_preprocessed.txt
+├── 02_structure.json
+├── 03_insights.md
+├── 04_article.md
+├── 05_illustrated.md
+├── screenshots/
+└── llm_logs/
+```
+
+## 设计原则
+
+- **文件即接口** — 每个阶段的输出都是普通文本文件，可以随时查看、修改、替换
+- **分治而非黑盒** — 不做一键全自动，每个阶段单独可控
+- **深度优先** — 不满足于摘要，追求原文之外的信息增量
+- **Provider 无关** — 通过 litellm 接入 100+ LLM provider，配置决定一切
