@@ -1,7 +1,0 @@
-.env
-.DS_Store
-.vscode/
-__pycache__/
-output/
-tmp/
-logs/
