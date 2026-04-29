@@ -2,15 +2,31 @@
 
 import argparse
 import logging
+import logging.handlers
 import os
 import sys
 
 # Add project root to path for internal imports
 sys.path.insert(0, os.path.dirname(__file__))
 
+LOG_DIR = os.path.join(os.path.dirname(__file__), "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+_file_handler = logging.handlers.RotatingFileHandler(
+    os.path.join(LOG_DIR, "video2article.log"),
+    maxBytes=10 * 1024 * 1024,
+    backupCount=5,
+    encoding="utf-8",
+)
+_file_handler.setLevel(logging.DEBUG)
+
+_console_handler = logging.StreamHandler()
+_console_handler.setLevel(logging.INFO)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[_console_handler, _file_handler],
 )
 
 log = logging.getLogger("video2article")
@@ -25,22 +41,37 @@ def _output_dir(source_name: str, base: str | None) -> str:
 # ── Core commands ──────────────────────────────────────────────
 
 
+def _run_article_pipeline(subtitle_path: str, output_dir: str, tier: str, dry_run: bool) -> str | None:
+    """字幕 → 文章 pipeline。返回文章路径，dry_run 时返回 None。"""
+    name = os.path.splitext(os.path.basename(subtitle_path))[0]
+    out = _output_dir(name, output_dir)
+
+    if dry_run:
+        log.info("[dry-run] article pipeline would output to: %s", out)
+        return None
+
+    pp = preprocess.run(subtitle_path, out, tier=tier)
+    st = structure.run(pp, out, tier=tier)
+    ins = insights.run(st, out, tier=tier)
+    syn = synthesize.run(st, ins, out, tier=tier)
+    log.info("Article complete: %s", syn)
+    return syn
+
+
 def cmd_article(args):
     """字幕 → 文章 (Step 1 完整 pipeline)"""
     from pipeline import preprocess, structure, insights, synthesize
 
-    name = os.path.splitext(os.path.basename(args.subtitle))[0]
-    out = _output_dir(name, args.output_dir)
+    _run_article_pipeline(args.subtitle, args.output_dir, args.tier, args.dry_run)
 
-    if args.dry_run:
-        log.info("[dry-run] Would create output in: %s", out)
-        return
 
-    pp = preprocess.run(args.subtitle, out, tier=args.tier)
-    st = structure.run(pp, out, tier=args.tier)
-    ins = insights.run(st, out, tier=args.tier)
-    syn = synthesize.run(st, ins, out, tier=args.tier)
-    log.info("Article complete: %s", syn)
+def cmd_sttarticle(args):
+    """音视频 → STT → 文章"""
+    from stt.transcribe import run as stt_run
+
+    output_base = args.output_dir or "output"
+    srt_path = stt_run(args.video)
+    _run_article_pipeline(srt_path, output_base, args.tier, args.dry_run)
 
 
 def cmd_illustrate(args):
@@ -78,7 +109,7 @@ def cmd_full(args):
         return
 
     # STT
-    srt_path = stt_run(args.video, out)
+    srt_path = stt_run(args.video)
     # Step 1
     pp = preprocess.run(srt_path, out, tier=args.tier)
     st = structure.run(pp, out, tier=args.tier)
@@ -184,7 +215,7 @@ def cmd_stt(args):
     if args.dry_run:
         log.info("[dry-run] stt %s → %s", args.video, out)
         return
-    srt = stt_run(args.video, out)
+    srt = stt_run(args.video)
     log.info("STT complete: %s", srt)
 
 
@@ -215,6 +246,14 @@ def main():
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
     p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     p.set_defaults(func=cmd_article)
+
+    # sttarticle
+    p = sub.add_parser("sttarticle", help="音视频 → 字幕 → 文章")
+    p.add_argument("video", help="音视频文件路径")
+    p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
+    p.add_argument("--dry-run", action="store_true", help="只打印不执行")
+    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
+    p.set_defaults(func=cmd_sttarticle)
 
     # illustrate
     p = sub.add_parser("illustrate", help="文章 + 视频截图 → 图文 (Step 2)")
