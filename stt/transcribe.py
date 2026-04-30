@@ -5,6 +5,7 @@ import subprocess
 import logging
 from faster_whisper import WhisperModel
 from config import get_config
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,8 @@ def _model_dir() -> str:
 def extract_audio(video_path: str, output_dir: str) -> str:
     """Extract audio track from video as WAV using ffmpeg."""
     os.makedirs(output_dir, exist_ok=True)
-    audio_path = os.path.join(output_dir, "audio.wav")
+    base = os.path.splitext(os.path.basename(video_path))[0]
+    audio_path = os.path.join(output_dir, f"{base}.wav")
     cmd = [
         "ffmpeg", "-y",
         "-i", video_path,
@@ -53,20 +55,30 @@ def transcribe(audio_path: str, output_dir: str, model_name: str = "large-v3-tur
     srt_path = os.path.join(output_dir, f"{base}.srt")
 
     logger.info("Loading faster-whisper model: %s (cache: %s)", model_name, _model_dir())
-    model = WhisperModel(model_name, device="cpu", compute_type="int8", download_root=_model_dir())
-    logger.info("Transcribing: %s", audio_path)
+    with tqdm(total=1, desc="Loading model", unit="model", leave=False, disable=None) as pbar:
+        model = WhisperModel(model_name, device="cpu", compute_type="int8", download_root=_model_dir())
+        pbar.update(1)
 
+    logger.info("Transcribing: %s", audio_path)
     segments, info = model.transcribe(audio_path, language="zh", beam_size=5)
     logger.info(
         "Detected language: %s (probability: %.2f)",
         info.language, info.language_probability,
     )
 
+    total_duration = info.duration
     with open(srt_path, "w", encoding="utf-8") as f:
-        for i, seg in enumerate(segments, start=1):
-            start = _format_srt_time(seg.start)
-            end = _format_srt_time(seg.end)
-            f.write(f"{i}\n{start} --> {end}\n{seg.text.strip()}\n\n")
+        with tqdm(total=100, desc="Transcribing", unit="%", leave=False) as pbar:
+            last_pct = 0
+            for i, seg in enumerate(segments, start=1):
+                start = _format_srt_time(seg.start)
+                end = _format_srt_time(seg.end)
+                f.write(f"{i}\n{start} --> {end}\n{seg.text.strip()}\n\n")
+
+                pct = min(int((seg.end / total_duration) * 100), 100)
+                if pct > last_pct:
+                    pbar.update(pct - last_pct)
+                    last_pct = pct
 
     logger.info("Transcription complete: %s", srt_path)
     return srt_path
@@ -74,8 +86,9 @@ def transcribe(audio_path: str, output_dir: str, model_name: str = "large-v3-tur
 
 def run(video_path: str, model: str = "large-v3-turbo") -> str:
     """Full STT pipeline: video → SRT subtitle. Returns SRT path."""
-    tmp_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "output", "srt")
-    os.makedirs(tmp_dir, exist_ok=True)
-    audio_path = extract_audio(video_path, tmp_dir)
-    srt_path = transcribe(audio_path, tmp_dir, model)
+    base = os.path.splitext(os.path.basename(video_path))[0]
+    res_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "output", base)
+    os.makedirs(res_dir, exist_ok=True)
+    audio_path = extract_audio(video_path, res_dir)
+    srt_path = transcribe(audio_path, res_dir, model)
     return srt_path
