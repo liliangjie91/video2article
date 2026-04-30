@@ -230,6 +230,164 @@ def cmd_speak(args):
     sp = speak_run(args.article, out)
     log.info("Speak complete: %s", sp)
 
+# ── URL / Download commands ──────────────────────────────────────
+
+
+def _resolve_subtitle(url: str, output_dir: str, force: bool = False) -> str:
+    """Try YouTube subs first, fall back to yt-dlp download + STT. Returns SRT path.
+
+    Cache-aware: skips download if SRT/audio already exists.
+    """
+    from download.youtube import get_subtitle_srt, extract_video_id
+    from download.media import download_audio
+    from stt.transcribe import transcribe
+
+    is_youtube = "youtube.com" in url or "youtu.be" in url
+
+    # Cache check: predict filenames for YouTube URLs
+    if is_youtube and not force:
+        video_id = extract_video_id(url)
+        srt_path = os.path.join(output_dir, f"{video_id}.srt")
+        if os.path.exists(srt_path):
+            log.info("SRT already cached: %s", srt_path)
+            return srt_path
+
+        audio_path = os.path.join(output_dir, f"{video_id}.m4a")
+        if os.path.exists(audio_path):
+            log.info("Audio already cached — transcribing: %s", audio_path)
+            return transcribe(audio_path, output_dir)
+
+    # Try 1: YouTube subtitles via API (zero download)
+    if is_youtube:
+        srt = get_subtitle_srt(url, output_dir)
+        if srt is not None:
+            return srt
+
+    # Try 2: yt-dlp audio → STT
+    log.info("Downloading audio via yt-dlp...")
+    audio_path = download_audio(url, output_dir)
+    return transcribe(audio_path, output_dir)
+
+
+def cmd_probe(args):
+    """Probe what's available for a URL (subtitles, video info)."""
+    from download.youtube import list_transcripts, extract_video_id
+
+    video_id = extract_video_id(args.url)
+    log.info("Video ID: %s", video_id)
+
+    subs = list_transcripts(args.url)
+    if subs:
+        log.info("Available subtitles (%d):", len(subs))
+        for s in subs:
+            tag = " (auto)" if s["is_generated"] else ""
+            log.info("  %s (%s)%s", s["language"], s["language_code"], tag)
+    else:
+        log.info("No subtitles available — would need STT fallback")
+
+    if args.verbose:
+        from download.media import yt_dlp
+        with yt_dlp.YoutubeDL({"quiet": True}) as ydl:
+            try:
+                info = ydl.extract_info(args.url, download=False)
+                log.info("Title: %s", info.get("title"))
+                log.info("Duration: %s s", info.get("duration"))
+                log.info("Uploader: %s", info.get("uploader"))
+            except Exception as e:
+                log.warning("Could not fetch video info: %s", e)
+
+
+def cmd_download(args):
+    """URL → SRT subtitle (try YouTube API first, fallback to yt-dlp + STT)."""
+    out = args.output_dir or os.path.join(os.path.dirname(__file__), "output", "downloads")
+
+    if args.dry_run:
+        log.info("[dry-run] Would download: %s", args.url)
+        return
+
+    srt_path = _resolve_subtitle(args.url, out, force=args.force)
+    log.info("Subtitle ready: %s", srt_path)
+
+
+def cmd_article_from_url(args):
+    """URL → article (Step 1). YouTube subs fast path when available."""
+    from pipeline import preprocess, structure, insights, synthesize
+
+    if args.dry_run:
+        log.info("[dry-run] Would process URL: %s", args.url)
+        return
+
+    dl_dir = os.path.join(os.path.dirname(__file__), "output", "downloads")
+    srt_path = _resolve_subtitle(args.url, dl_dir)
+    _run_article_pipeline(srt_path, args.output_dir, args.tier, args.dry_run)
+
+
+def cmd_full_from_url(args):
+    """URL → article + screenshots (full pipeline)."""
+    from download.media import download_video
+    from stt.transcribe import run as stt_run
+    from pipeline import preprocess, structure, insights, synthesize
+    from image.screenshot import extract_screenshots, synthesize_illustrated
+
+    if args.dry_run:
+        log.info("[dry-run] Would full-process URL: %s", args.url)
+        return
+
+    dl_dir = os.path.join(os.path.dirname(__file__), "output", "downloads")
+
+    # Try YouTube subs first (fast path)
+    srt_path = None
+    video_path = None
+    try:
+        from download.youtube import get_subtitle_srt
+        srt_path = get_subtitle_srt(args.url, dl_dir)
+    except ImportError:
+        pass
+
+    if srt_path:
+        # Subs obtained via API — download video separately for screenshots
+        log.info("Subtitles obtained via API — downloading video for screenshots...")
+        video_path = download_video(args.url, dl_dir)
+    else:
+        # No subs — download video, STT extracts audio internally
+        log.info("Downloading video for STT + screenshots...")
+        video_path = download_video(args.url, dl_dir)
+        srt_path = stt_run(video_path)
+
+    name = os.path.splitext(os.path.basename(video_path))[0]
+    out = _output_dir(name, args.output_dir)
+
+    pp = preprocess.run(srt_path, out, tier=args.tier)
+    st = structure.run(pp, out, tier=args.tier)
+    ins = insights.run(st, out, tier=args.tier)
+    syn = synthesize.run(st, ins, out, tier=args.tier)
+    ss_dir = os.path.join(out, "screenshots")
+    ss_list = extract_screenshots(video_path, st, ss_dir)
+    ill = synthesize_illustrated(syn, ss_list, st, out)
+    log.info("Full pipeline from URL complete: %s", ill)
+
+
+def cmd_uploads(args):
+    """List recent uploads from a YouTube channel."""
+    from download.youtube import get_channel_uploads
+
+    uploads = get_channel_uploads(args.identifier, max_results=args.limit)
+    if uploads is None:
+        log.error("YOUTUBE_API_KEY not set in .env — can't fetch channel uploads")
+        return
+
+    if not uploads:
+        log.info("No uploads found for: %s", args.identifier)
+        return
+
+    log.info("Recent uploads for %s:", args.identifier)
+    for i, v in enumerate(uploads, 1):
+        url = f"https://youtube.com/watch?v={v['video_id']}"
+        log.info("%d. %s", i, v["title"])
+        log.info("   %s", url)
+        log.info("   %s", v["published_at"][:10])
+
+
 # ── Parser setup ────────────────────────────────────────────────
 
 
@@ -328,6 +486,38 @@ def main():
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
     p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     p.set_defaults(func=cmd_review)
+
+    # ── URL commands ──
+    p = sub.add_parser("probe", help="探测 URL 信息（字幕、标题、时长等）")
+    p.add_argument("url", help="视频 URL")
+    p.add_argument("--verbose", "-v", action="store_true", help="显示详细信息")
+    p.set_defaults(func=cmd_probe)
+
+    p = sub.add_parser("download", help="URL → SRT 字幕（自动选择最快路径）")
+    p.add_argument("url", help="视频 URL")
+    p.add_argument("--output-dir", "-o", default=None, help="下载目录")
+    p.add_argument("--dry-run", action="store_true", help="只打印不执行")
+    p.add_argument("--force", "-f", action="store_true", help="忽略缓存，重新下载")
+    p.set_defaults(func=cmd_download)
+
+    p = sub.add_parser("article-from-url", help="URL → 文章 (YouTube 字幕直取 / yt-dlp+STT 兜底)")
+    p.add_argument("url", help="视频 URL")
+    p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
+    p.add_argument("--dry-run", action="store_true", help="只打印不执行")
+    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
+    p.set_defaults(func=cmd_article_from_url)
+
+    p = sub.add_parser("full-from-url", help="URL → 文章 + 截图 (全流程)")
+    p.add_argument("url", help="视频 URL")
+    p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
+    p.add_argument("--dry-run", action="store_true", help="只打印不执行")
+    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
+    p.set_defaults(func=cmd_full_from_url)
+
+    p = sub.add_parser("uploads", help="查看 YouTube 频道最新视频列表")
+    p.add_argument("identifier", help="频道 handle (@TED) 或频道 URL")
+    p.add_argument("--limit", "-l", type=int, default=10, help="数量")
+    p.set_defaults(func=cmd_uploads)
 
     args = parser.parse_args()
     args.func(args)

@@ -1,3 +1,7 @@
 litellm
 python-dotenv
 faster-whisper
+yt-dlp
+youtube-transcript-api
+requests
+tqdm

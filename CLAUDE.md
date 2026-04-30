@@ -11,10 +11,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 依赖与设置
 
 ```bash
-pip install litellm         # 必需 — LLM API 调用 (统一调度 100+ provider)
-pip install faster-whisper   # STT 模块需要
-brew install ffmpeg         # 截图提取 + 音频提取需要
+pip install -r requirements.txt  # LLM, STT, yt-dlp, YouTube Transcript API 等
+brew install ffmpeg              # 截图提取 + 音频提取 + yt-dlp 后处理需要
 ```
+
+YouTube 字幕直取（`youtube-transcript-api`）无需 API Key。
+YouTube Data API（频道上传列表功能）需要在 `.env` 设置 `YOUTUBE_API_KEY`。
 
 模型配置在 `config.ini`，API 密钥在 `.env`（不入库）：
 - 双档位：`[fast]`（轻量模型）和 `[best]`（强模型）
@@ -29,10 +31,13 @@ brew install ffmpeg         # 截图提取 + 音频提取需要
 ## 架构
 
 ```
-subtitle.srt / video.mp4
+subtitle.srt / video.mp4 / YouTube URL
         │
-        ▼
-   [STT: 语音→字幕]          ← stt/transcribe.py (可选前置)
+        ├──[YouTube URL]──→ download/youtube.py (字幕API直取，零下载)
+        │                       └── 失败 → download/media.py (yt-dlp音频)
+        │                                            └── STT
+        │
+        ├──[视频文件]─────→ stt/transcribe.py (可选前置，语音→字幕)
         │
         ▼
    [Stage 1: 预处理]         ← pipeline/preprocess.py   → 01_preprocessed.txt
@@ -52,6 +57,8 @@ subtitle.srt / video.mp4
 - **`llm.py`** — 核心 LLM 封装。`chat()` 透传 config 给 litellm，主模型失败时自动 fallback。所有 provider 统一由 litellm 调度。自动记录请求/响应到 `llm_logs/`。
 - **`config.py`** — 两级配置加载 (`fast`/`best`)。已知 provider 返回 `{model}`；未知 provider 按约定从 `.env` 读取 `{PROVIDER}_API_KEY` 等变量，映射为 `openai/` 或 `anthropic/` 前缀再传给 litellm。
 - **`utils/parser.py`** — 字幕解析统一接口，支持 SRT、VTT、Simple (`[HH:MM:SS] text`) 三种格式，输出统一的 `list[tuple[int, int, str]]`（start_ms, end_ms, text）。
+- **`download/youtube.py`** — YouTube 字幕直取（`youtube-transcript-api`，无需 API key）和频道上传列表（需 `YOUTUBE_API_KEY`）。
+- **`download/media.py`** — yt-dlp 音频/视频下载兜底。
 
 ### Pipeline 模块约定
 
@@ -75,6 +82,13 @@ python main.py stt <video.mp4>
 python main.py speak <article.md>
 python main.py review <article.md>                    # 文章审阅 (单篇)
 python main.py review <article1.md> <article2.md>     # 文章对比 (多篇)
+
+# URL 命令
+python main.py probe <url>                            # 探测字幕、标题、时长
+python main.py download <url>                         # URL → SRT（API 直取 / yt-dlp+STT 兜底）
+python main.py article-from-url <url>                 # URL → 文章
+python main.py full-from-url <url>                    # URL → 文章 + 截图
+python main.py uploads <@channel>                     # 频道最新视频列表
 ```
 
 所有命令支持 `--dry-run` 参数进行空跑验证。

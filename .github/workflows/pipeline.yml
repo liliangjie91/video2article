@@ -1,0 +1,71 @@
+name: video2article Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "视频 URL"
+        required: true
+      mode:
+        description: "管线模式"
+        default: "article"
+        type: choice
+        options:
+          - article
+          - full
+
+env:
+  # 在此添加 LLM API key（从 GitHub Secrets 读取）
+  # 例如 DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+  DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Cache faster-whisper models
+        uses: actions/cache@v4
+        with:
+          path: models/whisper
+          key: ${{ runner.os }}-faster-whisper-large-v3-turbo
+
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      # 本地 config.ini 的 model_dir 指向 macOS 绝对路径，在 CI 上不可用
+      - name: Override model_dir for CI
+        run: |
+          python -c "
+import configparser
+c = configparser.ConfigParser()
+c.read('config.ini')
+c['stt']['model_dir'] = 'models/whisper'
+with open('config.ini', 'w') as f:
+    c.write(f)
+"
+
+      - name: Run pipeline
+        run: |
+          CMD="${{ inputs.mode == 'full' && 'full-from-url' || 'article-from-url' }}"
+          python main.py "$CMD" "${{ inputs.url }}"
+
+      - name: Upload output artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: output
+          path: output/
