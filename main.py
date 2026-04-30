@@ -372,21 +372,14 @@ def cmd_uploads(args):
     from download.youtube import get_channel_uploads
 
     uploads = get_channel_uploads(args.identifier, max_results=args.limit)
-    if uploads is None:
-        log.error("YOUTUBE_API_KEY not set in .env — can't fetch channel uploads")
-        return
-
     if not uploads:
         log.info("No uploads found for: %s", args.identifier)
         return
 
-    log.info("Recent uploads for %s:", args.identifier)
+    infos = []
     for i, v in enumerate(uploads, 1):
-        url = f"https://youtube.com/watch?v={v['video_id']}"
-        log.info("%d. %s", i, v["title"])
-        log.info("   %s", url)
-        log.info("   %s", v["published_at"][:10])
-
+        infos.append(f"{i}. {v['title']} | {v['published_at'][:10]} | {args.identifier}_{v['video_id']}")
+    log.info("Recent uploads for %s:\n%s", args.identifier, "\n".join(infos))
 
 # ── Parser setup ────────────────────────────────────────────────
 
@@ -516,7 +509,7 @@ def main():
 
     p = sub.add_parser("uploads", help="查看 YouTube 频道最新视频列表")
     p.add_argument("identifier", help="频道 handle (@TED) 或频道 URL")
-    p.add_argument("--limit", "-l", type=int, default=10, help="数量")
+    p.add_argument("--limit", "-l", type=int, default=5, help="数量")
     p.set_defaults(func=cmd_uploads)
 
     args = parser.parse_args()
