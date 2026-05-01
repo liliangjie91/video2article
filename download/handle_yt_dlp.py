@@ -21,40 +21,37 @@ def download(url: str, output_dir: str, down_type: str = "audio") -> str:
     """
     os.makedirs(output_dir, exist_ok=True)
 
+    # set download options
+    ydl_opts = {
+        "outtmpl": os.path.join(output_dir, "%(uploader)s/%(upload_date)s_%(id)s/%(id)s.%(ext)s"),
+        "quiet": True,
+        "no_warnings": True,
+    }
+
     if down_type == "video":
-        ydl_opts = {
+        ydl_opts.update({
             "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-            "outtmpl": os.path.join(output_dir, "%(id)s.%(ext)s"),
-            "merge_output_format": "mp4",
-            "quiet": True,
-            "no_warnings": True,
-        }
-    else:
-        ydl_opts = {
+            "merge_output_format": "mp4"
+        })
+    elif down_type == "audio":
+        ydl_opts.update({
             "format": "bestaudio[ext=m4a]/bestaudio/best",
-            "outtmpl": os.path.join(output_dir, "%(id)s.%(ext)s"),
             "postprocessors": [{
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "m4a",
-            }],
-            "quiet": True,
-            "no_warnings": True,
-        }
+            }]
+        })
+    else:
+        raise ValueError(f"Invalid down_type: {down_type}. Must be 'audio' or 'video'.")
 
+    # download the media
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
+    res_file = ydl.prepare_filename(info)
 
-    title = info.get("title", url)
-    base = os.path.join(output_dir, info["id"])
+    # check for downloaded file
+    if os.path.exists(res_file):
+        logger.info("Downloaded %s: %s —> %s", down_type, info.get("title", url), res_file)
+        return res_file
 
-    if down_type == "video":
-        for ext in ("mp4", "mkv", "webm"):
-            path = f"{base}.{ext}"
-            if os.path.exists(path):
-                logger.info("Downloaded video: %s —> %s", title, path)
-                return path
-        raise FileNotFoundError(f"Downloaded file not found for {url} in {output_dir}")
-    else:
-        path = f"{base}.m4a"
-        logger.info("Downloaded audio: %s —> %s", title, path)
-        return path
+    raise FileNotFoundError(f"Downloaded file not found for {url} in {output_dir}")
