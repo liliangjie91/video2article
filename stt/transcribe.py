@@ -6,6 +6,7 @@ import logging
 from faster_whisper import WhisperModel
 from config import get_config
 from tqdm import tqdm
+from utils import format_srt_time
 
 logger = logging.getLogger(__name__)
 
@@ -35,15 +36,6 @@ def extract_audio(video_path: str, output_dir: str) -> str:
     return audio_path
 
 
-def _format_srt_time(seconds: float) -> str:
-    """Convert seconds to SRT timestamp format HH:MM:SS,mmm."""
-    h = int(seconds // 3600)
-    m = int((seconds % 3600) // 60)
-    s = int(seconds % 60)
-    ms = int((seconds - int(seconds)) * 1000)
-    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
-
-
 def transcribe(audio_path: str, output_dir: str, model_name: str = "large-v3-turbo") -> str:
     """Transcribe audio to SRT using faster-whisper.
 
@@ -71,8 +63,8 @@ def transcribe(audio_path: str, output_dir: str, model_name: str = "large-v3-tur
         with tqdm(total=100, desc="Transcribing", unit="%", leave=False) as pbar:
             last_pct = 0
             for i, seg in enumerate(segments, start=1):
-                start = _format_srt_time(seg.start)
-                end = _format_srt_time(seg.end)
+                start = format_srt_time(seg.start)
+                end = format_srt_time(seg.end)
                 f.write(f"{i}\n{start} --> {end}\n{seg.text.strip()}\n\n")
 
                 pct = min(int((seg.end / total_duration) * 100), 100)

@@ -238,7 +238,7 @@ def _resolve_subtitle(url: str, output_dir: str, force: bool = False) -> str:
 
     Cache-aware: skips download if SRT/audio already exists.
     """
-    from download.youtube import get_subtitle_srt, extract_video_id
+    from download.handle_youtube_api import get_subtitle_srt, extract_video_id
     from download.handle_yt_dlp import download as dl_download
     from stt.transcribe import transcribe
 
@@ -271,7 +271,7 @@ def _resolve_subtitle(url: str, output_dir: str, force: bool = False) -> str:
 
 def cmd_probe(args):
     """Probe what's available for a URL (subtitles, video info)."""
-    from download.youtube import list_transcripts, extract_video_id
+    from download.handle_youtube_api import list_transcripts, extract_video_id
 
     video_id = extract_video_id(args.url)
     log.info("Video ID: %s", video_id)
@@ -339,7 +339,7 @@ def cmd_full_from_url(args):
     srt_path = None
     video_path = None
     try:
-        from download.youtube import get_subtitle_srt
+        from download.handle_youtube_api import get_subtitle_srt
         srt_path = get_subtitle_srt(args.url, dl_dir)
     except ImportError:
         pass
@@ -369,7 +369,7 @@ def cmd_full_from_url(args):
 
 def cmd_uploads(args):
     """List recent uploads from a YouTube channel."""
-    from download.youtube import get_channel_uploads
+    from download.handle_youtube_api import get_channel_uploads
 
     uploads = get_channel_uploads(args.identifier, max_results=args.limit)
     if not uploads:
@@ -377,8 +377,8 @@ def cmd_uploads(args):
         return
 
     infos = []
-    for i, v in enumerate(uploads, 1):
-        infos.append(f"{i}. {v['title']} | {v['published_at'][:10]} | {args.identifier}_{v['video_id']}")
+    for i, ups in enumerate(uploads, 1):
+        infos.append(' | '.join([f"{v}" for v in ups.values()]))
     log.info("Recent uploads for %s:\n%s", args.identifier, "\n".join(infos))
 
 # ── Parser setup ────────────────────────────────────────────────

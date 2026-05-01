@@ -2,9 +2,10 @@
 
 import logging
 import os
-import re
 from typing import Optional
 
+from download import YOUTUBE_API_BASE, YOUTUBE_API_KEY
+from utils import format_srt_time
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
     TranscriptsDisabled,
@@ -25,15 +26,6 @@ def extract_video_id(url: str) -> str:
         qs = urllib.parse.parse_qs(parsed.query)
         return qs.get("v", [url])[0]
     return url
-
-
-def _format_srt_time(seconds: float) -> str:
-    """Convert seconds to SRT timestamp HH:MM:SS,mmm."""
-    h = int(seconds // 3600)
-    m = int((seconds % 3600) // 60)
-    s = int(seconds % 60)
-    ms = int((seconds - int(seconds)) * 1000)
-    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
 
 def list_transcripts(url: str) -> Optional[list[dict]]:
@@ -72,6 +64,15 @@ def get_subtitle_srt(url: str, output_dir: str, language: Optional[str] = "zh") 
         Path to the SRT file, or None if no subtitles available.
     """
     video_id = extract_video_id(url)
+    video_info = get_video_info_from_id(video_id)
+    if not video_info:
+        video_info = {}
+
+    output_dir = os.path.join(
+        output_dir,
+        video_info.get("channel_title", "unknown_channel"),
+        f"{video_info.get("publish_date", "unknown_date")}_{video_id}",
+    )
     os.makedirs(output_dir, exist_ok=True)
     ytt_api = YouTubeTranscriptApi()
 
@@ -103,8 +104,8 @@ def get_subtitle_srt(url: str, output_dir: str, language: Optional[str] = "zh") 
     srt_path = os.path.join(output_dir, f"{video_id}.srt")
     with open(srt_path, "w", encoding="utf-8") as f:
         for i, snippet in enumerate(transcript, start=1):
-            start = _format_srt_time(snippet.start)
-            end = _format_srt_time(snippet.start + snippet.duration)
+            start = format_srt_time(snippet.start)
+            end = format_srt_time(snippet.start + snippet.duration)
             f.write(f"{i}\n{start} --> {end}\n{snippet.text.strip()}\n\n")
 
     logger.info("Subtitles saved: %s", srt_path)
@@ -112,15 +113,6 @@ def get_subtitle_srt(url: str, output_dir: str, language: Optional[str] = "zh") 
 
 
 # ── YouTube Data API (optional, requires YOUTUBE_API_KEY in .env) ──────
-
-def _youtube_api_key() -> Optional[str]:
-    """Get YouTube Data API key from environment."""
-    from dotenv import load_dotenv
-    load_dotenv()
-    return os.getenv("YOUTUBE_API_KEY")
-
-
-YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3"
 
 
 def get_channel_uploads(identifier: str, max_results: int = 5) -> Optional[list[dict]]:
@@ -131,9 +123,9 @@ def get_channel_uploads(identifier: str, max_results: int = 5) -> Optional[list[
         max_results: Number of videos to return (max 50).
 
     Returns:
-        List of {video_id, title, published_at, channel_title}, or None if API key missing.
+        List of {title, channel_title, video_id, published_at}, or None if API key missing.
     """
-    api_key = _youtube_api_key()
+    api_key = YOUTUBE_API_KEY
     if not api_key:
         logger.warning("YOUTUBE_API_KEY not set — skipping channel uploads")
         return None
@@ -173,13 +165,35 @@ def get_channel_uploads(identifier: str, max_results: int = 5) -> Optional[list[
         snippet = item["snippet"]
         resource = snippet.get("resourceId", {})
         items.append({
-            "video_id": resource.get("videoId", ""),
             "title": snippet.get("title", ""),
-            "published_at": snippet.get("publishedAt", ""),
             "channel_title": snippet.get("channelTitle", ""),
+            "video_id": resource.get("videoId", ""),
+            "published_at": snippet.get("publishedAt", ""),
         })
 
     return items
+
+
+def get_video_info_from_id(video_id: str) -> Optional[dict]:
+    """Get basic video info (title, channel) from YouTube URL using Data API."""
+    api_key = YOUTUBE_API_KEY
+    if not api_key:
+        logger.warning("YOUTUBE_API_KEY not set — cannot fetch video info")
+        return None
+    import requests
+    fields = ["title", "channelTitle", "publishedAt"]
+    params_video = {"part": "snippet", "key": api_key, "id": video_id}
+    resp_video = requests.get(f"{YOUTUBE_API_BASE}/videos", params=params_video, timeout=15)
+    resp_video.raise_for_status()
+    videos_info = resp_video.json()
+    if not videos_info.get("items"):
+        logger.warning("Video not found: %s", video_id)
+        return None
+    result = {k: videos_info.get("items")[0].get("snippet", {}).get(k, "") for k in fields}
+    result["video_id"] = video_id
+    published = result.pop("publishedAt")
+    result["publish_date"] = published[:10].replace("-", "")
+    return result
 
 
 def _extract_channel_id(input_str: str) -> tuple[str, str]:
