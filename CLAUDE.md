@@ -34,7 +34,7 @@ YouTube Data API（频道上传列表功能）需要在 `.env` 设置 `YOUTUBE_A
 subtitle.srt / video.mp4 / YouTube URL
         │
         ├──[YouTube URL]──→ download/youtube.py (字幕API直取，零下载)
-        │                       └── 失败 → download/media.py (yt-dlp音频)
+        │                       └── 失败 → download/handle_yt_dlp.py (yt-dlp音频)
         │                                            └── STT
         │
         ├──[视频文件]─────→ stt/transcribe.py (可选前置，语音→字幕)
@@ -58,7 +58,7 @@ subtitle.srt / video.mp4 / YouTube URL
 - **`config.py`** — 两级配置加载 (`fast`/`best`)。已知 provider 返回 `{model}`；未知 provider 按约定从 `.env` 读取 `{PROVIDER}_API_KEY` 等变量，映射为 `openai/` 或 `anthropic/` 前缀再传给 litellm。
 - **`utils/parser.py`** — 字幕解析统一接口，支持 SRT、VTT、Simple (`[HH:MM:SS] text`) 三种格式，输出统一的 `list[tuple[int, int, str]]`（start_ms, end_ms, text）。
 - **`download/youtube.py`** — YouTube 字幕直取（`youtube-transcript-api`，无需 API key）和频道上传列表（需 `YOUTUBE_API_KEY`）。
-- **`download/media.py`** — yt-dlp 音频/视频下载兜底。
+- **`download/handle_yt_dlp.py`** — yt-dlp 音频/视频下载兜底。
 
 ### Pipeline 模块约定
 

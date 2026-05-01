@@ -239,7 +239,7 @@ def _resolve_subtitle(url: str, output_dir: str, force: bool = False) -> str:
     Cache-aware: skips download if SRT/audio already exists.
     """
     from download.youtube import get_subtitle_srt, extract_video_id
-    from download.media import download_audio
+    from download.handle_yt_dlp import download as dl_download
     from stt.transcribe import transcribe
 
     is_youtube = "youtube.com" in url or "youtu.be" in url
@@ -265,7 +265,7 @@ def _resolve_subtitle(url: str, output_dir: str, force: bool = False) -> str:
 
     # Try 2: yt-dlp audio → STT
     log.info("Downloading audio via yt-dlp...")
-    audio_path = download_audio(url, output_dir)
+    audio_path = dl_download(url, output_dir, down_type="audio")
     return transcribe(audio_path, output_dir)
 
 
@@ -286,7 +286,7 @@ def cmd_probe(args):
         log.info("No subtitles available — would need STT fallback")
 
     if args.verbose:
-        from download.media import yt_dlp
+        import yt_dlp
         with yt_dlp.YoutubeDL({"quiet": True}) as ydl:
             try:
                 info = ydl.extract_info(args.url, download=False)
@@ -324,7 +324,7 @@ def cmd_article_from_url(args):
 
 def cmd_full_from_url(args):
     """URL → article + screenshots (full pipeline)."""
-    from download.media import download_video
+    from download.handle_yt_dlp import download as dl_download
     from stt.transcribe import run as stt_run
     from pipeline import preprocess, structure, insights, synthesize
     from image.screenshot import extract_screenshots, synthesize_illustrated
@@ -347,11 +347,11 @@ def cmd_full_from_url(args):
     if srt_path:
         # Subs obtained via API — download video separately for screenshots
         log.info("Subtitles obtained via API — downloading video for screenshots...")
-        video_path = download_video(args.url, dl_dir)
+        video_path = dl_download(args.url, dl_dir, down_type="video")
     else:
         # No subs — download video, STT extracts audio internally
         log.info("Downloading video for STT + screenshots...")
-        video_path = download_video(args.url, dl_dir)
+        video_path = dl_download(args.url, dl_dir, down_type="video")
         srt_path = stt_run(video_path)
 
     name = os.path.splitext(os.path.basename(video_path))[0]
