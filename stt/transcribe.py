@@ -25,6 +25,9 @@ def extract_audio(video_audio_path: str) -> str:
     
     base = os.path.splitext(os.path.basename(video_audio_path))[0]
     audio_path = os.path.join(os.path.dirname(video_audio_path), f"{base}.wav")
+    if os.path.exists(audio_path):
+        logger.info("Audio already extracted, skipping: %s", audio_path)
+        return audio_path
     cmd = [
         "ffmpeg", "-y",
         "-i", video_audio_path,
@@ -45,7 +48,9 @@ def transcribe(audio_path: str, model_name: str = "large-v3-turbo") -> str:
     
     base = os.path.splitext(os.path.basename(audio_path))[0]
     srt_path = os.path.join(os.path.dirname(audio_path), f"{base}.srt")
-
+    if os.path.exists(srt_path):
+        logger.info("SRT already transcribed, skipping transcription: %s", srt_path)
+        return srt_path
     logger.info("Loading faster-whisper model: %s (cache: %s)", model_name, _model_dir())
     with tqdm(total=1, desc="Loading model", unit="model", leave=False, disable=None) as pbar:
         model = WhisperModel(model_name, device="cpu", compute_type="int8", download_root=_model_dir())
