@@ -6,7 +6,7 @@ import logging
 from faster_whisper import WhisperModel
 from config import get_config
 from tqdm import tqdm
-from utils import format_srt_time
+from utils import format_srt_time, is_video, is_audio
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +20,14 @@ def _model_dir() -> str:
     return abspath
 
 
-def extract_audio(video_path: str, output_dir: str) -> str:
+def extract_audio(video_audio_path: str) -> str:
     """Extract audio track from video as WAV using ffmpeg."""
-    os.makedirs(output_dir, exist_ok=True)
-    base = os.path.splitext(os.path.basename(video_path))[0]
-    audio_path = os.path.join(output_dir, f"{base}.wav")
+    
+    base = os.path.splitext(os.path.basename(video_audio_path))[0]
+    audio_path = os.path.join(os.path.dirname(video_audio_path), f"{base}.wav")
     cmd = [
         "ffmpeg", "-y",
-        "-i", video_path,
+        "-i", video_audio_path,
         "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
         audio_path,
     ]
@@ -36,15 +36,15 @@ def extract_audio(video_path: str, output_dir: str) -> str:
     return audio_path
 
 
-def transcribe(audio_path: str, output_dir: str, model_name: str = "large-v3-turbo") -> str:
+def transcribe(audio_path: str, model_name: str = "large-v3-turbo") -> str:
     """Transcribe audio to SRT using faster-whisper.
 
     Uses CTranslate2-optimized inference — runs large models efficiently on CPU.
     Returns path to the generated SRT file.
     """
-    os.makedirs(output_dir, exist_ok=True)
+    
     base = os.path.splitext(os.path.basename(audio_path))[0]
-    srt_path = os.path.join(output_dir, f"{base}.srt")
+    srt_path = os.path.join(os.path.dirname(audio_path), f"{base}.srt")
 
     logger.info("Loading faster-whisper model: %s (cache: %s)", model_name, _model_dir())
     with tqdm(total=1, desc="Loading model", unit="model", leave=False, disable=None) as pbar:
@@ -76,11 +76,16 @@ def transcribe(audio_path: str, output_dir: str, model_name: str = "large-v3-tur
     return srt_path
 
 
-def run(video_path: str, model: str = "large-v3-turbo") -> str:
-    """Full STT pipeline: video → SRT subtitle. Returns SRT path."""
-    base = os.path.splitext(os.path.basename(video_path))[0]
-    res_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "output", base)
-    os.makedirs(res_dir, exist_ok=True)
-    audio_path = extract_audio(video_path, res_dir)
-    srt_path = transcribe(audio_path, res_dir, model)
+def run(video_audio_path: str, model: str = "large-v3-turbo") -> str:
+    """Full STT pipeline: video/audio → SRT subtitle. Returns SRT path."""
+    
+    if is_video(video_audio_path):
+        logger.info("Input is video, extracting audio...")
+        video_audio_path = extract_audio(video_audio_path)
+    elif is_audio(video_audio_path):
+        logger.info("Input is audio, skipping extraction.")
+    else:
+        raise ValueError(f"Unsupported input format for STT: {video_audio_path}")
+
+    srt_path = transcribe(video_audio_path, model)
     return srt_path
