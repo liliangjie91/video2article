@@ -4,7 +4,7 @@ import logging
 import os
 from typing import Optional
 
-from download import YOUTUBE_API_BASE, YOUTUBE_API_KEY
+from download import YOUTUBE_API_BASE, YOUTUBE_API_KEY, extract_video_id
 from utils import format_srt_time
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
@@ -14,18 +14,6 @@ from youtube_transcript_api._errors import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def extract_video_id(url: str) -> str:
-    """Extract YouTube video ID from URL or return as-is."""
-    if "youtube.com" in url or "youtu.be" in url:
-        if "youtu.be" in url:
-            return url.split("/")[-1].split("?")[0]
-        import urllib.parse
-        parsed = urllib.parse.urlparse(url)
-        qs = urllib.parse.parse_qs(parsed.query)
-        return qs.get("v", [url])[0]
-    return url
 
 
 def list_transcripts(url: str) -> Optional[list[dict]]:
@@ -63,6 +51,7 @@ def get_subtitle_srt(url: str, output_dir: str, language: Optional[str] = "zh") 
     Returns:
         Path to the SRT file, or None if no subtitles available.
     """
+    # Extract video ID and info for naming & get result path
     video_id = extract_video_id(url)
     video_info = get_video_info_from_id(video_id)
     if not video_info:
@@ -74,6 +63,13 @@ def get_subtitle_srt(url: str, output_dir: str, language: Optional[str] = "zh") 
         f"{video_info.get("publish_date", "unknown_date")}_{video_id}",
     )
     os.makedirs(output_dir, exist_ok=True)
+    srt_path = os.path.join(output_dir, f"{video_id}.srt")
+    if os.path.exists(srt_path):
+        logger.info("SRT already exists, skipping: %s", srt_path)
+        return srt_path
+
+    # Fetch transcript
+    ## list available transcripts to check for preferred language
     ytt_api = YouTubeTranscriptApi()
 
     try:
@@ -85,7 +81,7 @@ def get_subtitle_srt(url: str, output_dir: str, language: Optional[str] = "zh") 
         logger.info("Transcripts disabled for: %s", video_id)
         return None
 
-    # Try to fetch transcript
+    ## Try to fetch transcript
     try:
         if language:
             transcript = transcript_list.find_transcript([language]).fetch()
@@ -101,7 +97,7 @@ def get_subtitle_srt(url: str, output_dir: str, language: Optional[str] = "zh") 
             logger.info("No usable transcript found for: %s", video_id)
             return None
 
-    srt_path = os.path.join(output_dir, f"{video_id}.srt")
+    ## Save as SRT
     with open(srt_path, "w", encoding="utf-8") as f:
         for i, snippet in enumerate(transcript, start=1):
             start = format_srt_time(snippet.start)
