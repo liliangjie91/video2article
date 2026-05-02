@@ -74,7 +74,7 @@ def run(article_paths: list[str], output_dir: str, tier: str = "best") -> str:
 
     comments = chat(editor_input, tier=tier, system=EDITOR_PROMPT, step=5)
 
-    comments_path = os.path.join(output_dir, "review_comments.md")
+    comments_path = os.path.join(output_dir, "05_review_comments.md")
     with open(comments_path, "w", encoding="utf-8") as f:
         f.write(comments)
     logger.info("Review comments: %s", comments_path)
@@ -98,7 +98,7 @@ def run(article_paths: list[str], output_dir: str, tier: str = "best") -> str:
 
     final = chat(writer_input, tier=tier, system=WRITER_PROMPT, step=5)
 
-    final_path = os.path.join(output_dir, "review_final.md")
+    final_path = os.path.join(output_dir, "05_review_final.md")
     with open(final_path, "w", encoding="utf-8") as f:
         f.write(final)
     logger.info("Review final: %s", final_path)

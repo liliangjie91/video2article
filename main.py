@@ -25,7 +25,7 @@ _console_handler.setLevel(logging.INFO)
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d: %(message)s",
     handlers=[_console_handler, _file_handler],
 )
 
@@ -59,7 +59,7 @@ def _run_article_pipeline(subtitle_path: str, output_dir: str, tier: str, dry_ru
     """字幕 → 文章 pipeline。返回文章路径，dry_run 时返回 None。"""
     from pipeline import preprocess, structure, insights, synthesize
     out = _project_dir(subtitle_path, output_dir)
-
+    log.info("Running article pipeline: %s", out)
     if dry_run:
         log.info("[dry-run] article pipeline would output to: %s", out)
         return None
@@ -86,7 +86,7 @@ def cmd_sttarticle(args):
 
 def cmd_urlarticle(args):
     """ url/video_id → (音视频 → STT) → 文章 """
-    srt_path = _resolve_subtitle(args.url, args.output_dir)
+    srt_path = _resolve_subtitle(args.video, args.output_dir)
     _run_article_pipeline(srt_path, args.output_dir, args.tier, args.dry_run)
 
 
@@ -267,7 +267,7 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     # article
-    p = sub.add_parser("article", help="字幕 → 文章 (Step 1)")
+    p = sub.add_parser("srtarticle", help="字幕 → 文章 (Step 1)")
     p.add_argument("subtitle", help="字幕文件路径 (.srt/.vtt)")
     p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
@@ -282,9 +282,9 @@ def main():
     p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     p.set_defaults(func=cmd_sttarticle)
 
-    # full
-    p = sub.add_parser("full", help="全流程: 视频 → 字幕 → 文章 → 图文")
-    p.add_argument("video-id", help="视频ID或URL")
+    # urlarticle
+    p = sub.add_parser("urlarticle", help="全流程: 视频 → 字幕 → 文章 → 图文")
+    p.add_argument("video", help="视频ID或URL")
     p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
     p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")

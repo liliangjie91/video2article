@@ -1,5 +1,6 @@
 """Utility shared functions."""
 
+import os
 
 def format_srt_time(seconds: float) -> str:
     """Convert seconds to SRT timestamp HH:MM:SS,mmm."""
