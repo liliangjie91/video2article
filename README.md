@@ -95,16 +95,25 @@ python main.py speak    <文章.md>               # 文字转语音
 
 ## 输出目录
 
+每个 pipeline 一个独立文件夹，从下载到最终文章的所有产物都在里面：
+
 ```
-output/<来源>/
-├── 01_preprocessed.txt
-├── 02_structure.json
-├── 03_insights.md
-├── 04_article.md
-├── 05_illustrated.md
-├── screenshots/
-└── llm_logs/
+output/<channel_title>/<uploaddate>_<videoid>/
+├── videoid.mp4 / .m4a            # 下载的原始音视频（yt-dlp）
+├── videoid.srt                   # YouTube API 直取的字幕（0 下载）
+├── 01_preprocessed.txt           # Stage 1: 清洗后文本
+├── 02_structure.json             # Stage 2: 论证骨架
+├── 03_insights.md                # Stage 3: 深度挖掘笔记
+├── 04_article.md                 # Stage 4: 最终文章
+├── 05_illustrated.md             # 图文合成（可选）
+├── screenshots/                  # 视频关键帧
+└── llm_logs/                     # LLM 请求/响应日志
 ```
+
+- 下载（字幕或音视频）自动按 `output/<频道>/<日期>_<videoId>/` 组织
+- STT 转写的字幕默认输出到音视频所在目录
+- 文章管线（preprocess → structure → insights → synthesize）默认输出到输入文件所在目录
+- 整体原则：**一个 pipeline = 一个文件夹**，不存在中间产物散落的问题
 
 ## 设计原则
 

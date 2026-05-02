@@ -95,17 +95,31 @@ python main.py uploads <@channel>                     # 频道最新视频列表
 
 ## 输出结构
 
+每个 pipeline 一个独立文件夹：
+
 ```
-output/<source_name>/
-├── 00_subtitle.srt
-├── 01_preprocessed.txt
-├── 02_structure.json
-├── 03_insights.md
-├── 04_article.md
-├── 05_illustrated.md
+output/<channel_title>/<uploaddate>_<videoid>/
+├── videoid.mp4 / .m4a            # yt-dlp 下载的原始音视频
+├── videoid.srt                   # YouTube API 直取字幕（0 下载）
+├── 01_preprocessed.txt           # Stage 1
+├── 02_structure.json             # Stage 2
+├── 03_insights.md                # Stage 3
+├── 04_article.md                 # Stage 4
+├── 05_illustrated.md             # 图文合成（可选）
 ├── screenshots/
 └── llm_logs/
 ```
+
+### 输出规则
+
+| 步骤 | 默认输出路径 |
+|------|-------------|
+| 下载字幕/音视频 | `output/<channel>/<date>_<videoid>/<videoid>.<ext>` |
+| STT 转写 | 输入文件所在目录 |
+| 文章管线（Stage 1-4） | 输入文件所在目录 |
+| 截图 | pipeline 目录下的 `screenshots/` |
+
+**整体原则**：一个 pipeline = 一个文件夹，从下载到最终文章所有产物集中存放。
 
 ## 命名
 
