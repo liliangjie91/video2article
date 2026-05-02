@@ -4,35 +4,8 @@ import logging
 import os
 
 import yt_dlp
-from download import extract_video_id
+from download import extract_video_id, get_cache, write_cache
 logger = logging.getLogger(__name__)
-
-CACHE_FILE = os.path.join(os.path.dirname(__file__), ".download.cache")
-
-
-def read_cache() -> dict[str, str]:
-    """Read download cache. Returns dict of video_id → output_path."""
-    if not os.path.exists(CACHE_FILE):
-        return {}
-    cache: dict[str, str] = {}
-    with open(CACHE_FILE, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            parts = line.split(",", 1)
-            if len(parts) == 2:
-                vid, path = parts
-                # Skip stale entries where the file no longer exists
-                if os.path.exists(path):
-                    cache[vid] = path
-    return cache
-
-
-def _write_cache(video_id: str, path: str) -> None:
-    """Append one entry to the download cache."""
-    with open(CACHE_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{video_id},{path}\n")
 
 
 def _build_ydl_opts(output_dir: str, down_type: str) -> dict:
@@ -50,7 +23,7 @@ def _build_ydl_opts(output_dir: str, down_type: str) -> dict:
         })
     elif down_type == "audio":
         opts.update({
-            "format": "bestaudio/best",
+            "format": "bestaudio[ext=m4a]/best",
         })
     else:
         raise ValueError(f"Invalid down_type: {down_type}. Must be 'audio' or 'video'.")
@@ -73,16 +46,13 @@ def download(url: str, output_dir: str = "../output", down_type: str = "audio") 
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    # Check global cache by video_id (zero network)
+    # Check cache by video_id (zero network)
     vid = extract_video_id(url)
     if vid:
-        cached = read_cache()
-        if vid in cached:
-            cached_path = cached[vid]
-            if os.path.exists(cached_path):
-                logger.info("Cache hit: %s —> %s", vid, cached_path)
-                return cached_path
-            logger.info("Stale cache entry for %s, re-downloading...", vid)
+        cached_path = get_cache(type=down_type, video_id=vid)
+        if cached_path and os.path.exists(cached_path):
+            logger.info("Cache hit (%s): %s —> %s", down_type, vid, cached_path)
+            return cached_path
 
     # Build yt-dlp options and download
     ydl_opts = _build_ydl_opts(output_dir, down_type)
@@ -96,9 +66,9 @@ def download(url: str, output_dir: str = "../output", down_type: str = "audio") 
         raise FileNotFoundError(f"Downloaded file not found for {url} in {output_dir}")
     logger.info("Downloaded %s: %s —> %s", down_type, info.get("title", url), res_file)
 
-    # Update global cache
+    # Update cache
     actual_id = info.get("id") or vid
     if actual_id:
-        _write_cache(actual_id, res_file)
+        write_cache(down_type, actual_id, res_file)
 
     return res_file

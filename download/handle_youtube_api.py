@@ -4,7 +4,7 @@ import logging
 import os
 from typing import Optional
 
-from download import YOUTUBE_API_BASE, YOUTUBE_API_KEY, extract_video_id
+from download import YOUTUBE_API_BASE, YOUTUBE_API_KEY, extract_video_id, get_cache, write_cache
 from utils import format_srt_time
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
@@ -172,6 +172,12 @@ def get_channel_uploads(identifier: str, max_results: int = 5) -> Optional[list[
 
 def get_video_info_from_id(video_id: str) -> Optional[dict]:
     """Get basic video info (title, channel) from YouTube URL using Data API."""
+    cached = get_cache("info", video_id)
+    if cached:
+        logger.info("Cache hit (info): %s", cached)
+        return cached
+
+
     api_key = YOUTUBE_API_KEY
     if not api_key:
         logger.warning("YOUTUBE_API_KEY not set — cannot fetch video info")
@@ -189,6 +195,9 @@ def get_video_info_from_id(video_id: str) -> Optional[dict]:
     result["video_id"] = video_id
     published = result.pop("publishedAt")
     result["publish_date"] = published[:10].replace("-", "")
+    result["channel_title"] = result.pop("channelTitle")
+    logger.info("Fetched video info: %s", result)
+    write_cache("info", video_id, result)
     return result
 
 
