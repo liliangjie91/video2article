@@ -73,10 +73,10 @@ DEEPSEEK_API_KEY=sk-...
 ## 常用命令
 
 ```bash
-# 完整流程
-python main.py sttarticle <视频>               # 音视频 → 文章
-python main.py article    <字幕.srt>            # 字幕 → 文章
-python main.py full       <视频>                # 全流程（含图文）
+# 完整流程（自动检测输入类型）
+python main.py article <字幕.srt>        # 字幕 → 文章
+python main.py article <视频.mp4>        # 音视频 → 文章
+python main.py article <URL>             # YouTube URL → 文章
 
 # 单步调试
 python main.py preprocess <字幕.srt>
@@ -86,9 +86,10 @@ python main.py synthesize <02_structure.json> <03_insights.md>
 
 # 周边
 python main.py stt      <视频>                  # 仅语音转文字
-python main.py illustrate <文章.md> --video <视频> # 仅图文合成
 python main.py review   <文章.md>               # 审阅
-python main.py speak    <文章.md>               # 文字转语音
+python main.py probe    <URL>                   # 探测字幕、标题、时长
+python main.py download <URL>                   # URL → SRT
+python main.py uploads  <@频道>                 # 频道最新视频列表
 
 所有命令支持 --dry-run 空跑。
 ```

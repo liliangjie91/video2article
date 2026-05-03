@@ -72,22 +72,31 @@ def _run_article_pipeline(subtitle_path: str, output_dir: str, tier: str, dry_ru
     return syn
 
 
-def cmd_srtarticle(args):
-    """字幕 → 文章 (Step 1 完整 pipeline)"""
-    _run_article_pipeline(args.subtitle, args.output_dir, args.tier, args.dry_run)
+def _detect_input_type(input_str: str) -> str:
+    """Detect input type: ``'srt'``, ``'media'``, or ``'url'``."""
+    if "youtube.com" in input_str or "youtu.be" in input_str or input_str.startswith("http"):
+        return "url"
+    ext = os.path.splitext(input_str)[1].lower()
+    if ext in (".srt", ".vtt"):
+        return "srt"
+    if ext in (".mp4", ".mkv", ".m4a", ".wav", ".mp3", ".webm", ".mov", ".avi"):
+        return "media"
+    # Bare video ID
+    return "url"
 
 
-def cmd_sttarticle(args):
-    """音视频 → STT → 文章"""
-    from stt.transcribe import run as stt_run
-
-    srt_path = stt_run(args.video)
-    _run_article_pipeline(srt_path, args.output_dir, args.tier, args.dry_run)
-
-def cmd_urlarticle(args):
-    """ url/video_id → (音视频 → STT) → 文章 """
-    srt_path = _resolve_subtitle(args.video, args.output_dir)
-    _run_article_pipeline(srt_path, args.output_dir, args.tier, args.dry_run)
+def cmd_article(args):
+    """字幕/音视频/URL → 文章（自动检测输入类型）"""
+    input_type = _detect_input_type(args.input)
+    if input_type == "srt":
+        _run_article_pipeline(args.input, args.output_dir, args.tier, args.dry_run)
+    elif input_type == "media":
+        from stt.transcribe import run as stt_run
+        srt_path = stt_run(args.input)
+        _run_article_pipeline(srt_path, args.output_dir, args.tier, args.dry_run)
+    else:
+        srt_path = _resolve_subtitle(args.input, args.output_dir)
+        _run_article_pipeline(srt_path, args.output_dir, args.tier, args.dry_run)
 
 
 # ── Single-stage debug commands ────────────────────────────────
@@ -266,29 +275,13 @@ def main():
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    # article
-    p = sub.add_parser("srtarticle", help="字幕 → 文章 (Step 1)")
-    p.add_argument("subtitle", help="字幕文件路径 (.srt/.vtt)")
+    # article (unified entry — auto-detects input type)
+    p = sub.add_parser("article", help="字幕/音视频/URL → 文章（自动检测类型）")
+    p.add_argument("input", help="字幕文件(.srt/.vtt)、音视频文件(.mp4等) 或 YouTube URL/ID")
     p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
     p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
-    p.set_defaults(func=cmd_srtarticle)
-
-    # sttarticle
-    p = sub.add_parser("sttarticle", help="音视频 → 字幕 → 文章")
-    p.add_argument("video", help="音视频文件路径")
-    p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
-    p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
-    p.set_defaults(func=cmd_sttarticle)
-
-    # urlarticle
-    p = sub.add_parser("urlarticle", help="全流程: 视频 → 字幕 → 文章 → 图文")
-    p.add_argument("video", help="视频ID或URL")
-    p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
-    p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
-    p.set_defaults(func=cmd_urlarticle)
+    p.set_defaults(func=cmd_article)
 
     # preprocess
     p = sub.add_parser("preprocess", help="[单阶段] 字幕预处理")

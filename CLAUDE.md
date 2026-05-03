@@ -57,8 +57,9 @@ subtitle.srt / video.mp4 / YouTube URL
 - **`llm.py`** — 核心 LLM 封装。`chat()` 透传 config 给 litellm，主模型失败时自动 fallback。所有 provider 统一由 litellm 调度。自动记录请求/响应到 `llm_logs/`。
 - **`config.py`** — 两级配置加载 (`fast`/`best`)。已知 provider 返回 `{model}`；未知 provider 按约定从 `.env` 读取 `{PROVIDER}_API_KEY` 等变量，映射为 `openai/` 或 `anthropic/` 前缀再传给 litellm。
 - **`utils/parser.py`** — 字幕解析统一接口，支持 SRT、VTT、Simple (`[HH:MM:SS] text`) 三种格式，输出统一的 `list[tuple[int, int, str]]`（start_ms, end_ms, text）。
-- **`download/youtube.py`** — YouTube 字幕直取（`youtube-transcript-api`，无需 API key）和频道上传列表（需 `YOUTUBE_API_KEY`）。
-- **`download/handle_yt_dlp.py`** — yt-dlp 音频/视频下载兜底。
+- **`download/__init__.py`** — 下载模块入口 + 缓存管理。`.download.cache` 以 `type,video_id,path` 格式缓存下载路径和视频信息（info），`get_cache(type, video_id)` 统一查询，支持 `info` 返回 dict。
+- **`download/handle_youtube_api.py`** — YouTube 字幕直取（`youtube-transcript-api`，无需 API key）和频道上传列表（需 `YOUTUBE_API_KEY`）。自动缓存视频 info 到 `.download.cache`。
+- **`download/handle_yt_dlp.py`** — yt-dlp 音频/视频下载兜底。缓存按 `type`（audio/video）区分，避免重复下载。
 
 ### Pipeline 模块约定
 
@@ -67,9 +68,7 @@ subtitle.srt / video.mp4 / YouTube URL
 ## CLI
 
 ```bash
-python main.py article <subtitle.srt>                  # 字幕 → 文章 (Step 1)
-python main.py illustrate <article.md> --video <mp4>    # 文章 → 图文 (Step 2)
-python main.py full <video.mp4>                         # 全流程
+python main.py article <subtitle.srt> / <video.mp4> / <url>                # 字幕/音视频/url/video_id → 文章 （自动检测格式）
 
 # 单阶段调试
 python main.py preprocess <subtitle.srt>
@@ -79,15 +78,12 @@ python main.py synthesize <01_preprocessed.txt> <02_structure.json> <03_insights
 
 # 周边
 python main.py stt <video.mp4>
-python main.py speak <article.md>
 python main.py review <article.md>                    # 文章审阅 (单篇)
 python main.py review <article1.md> <article2.md>     # 文章对比 (多篇)
 
 # URL 命令
 python main.py probe <url>                            # 探测字幕、标题、时长
 python main.py download <url>                         # URL → SRT（API 直取 / yt-dlp+STT 兜底）
-python main.py article-from-url <url>                 # URL → 文章
-python main.py full-from-url <url>                    # URL → 文章 + 截图
 python main.py uploads <@channel>                     # 频道最新视频列表
 ```
 
