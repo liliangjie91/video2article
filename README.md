@@ -11,7 +11,7 @@
 一行命令，从视频到文章：
 
 ```bash
-python main.py sttarticle 演讲.mp4
+python main.py article 演讲.mp4
 ```
 
 也可以从字幕开始：
@@ -77,6 +77,7 @@ DEEPSEEK_API_KEY=sk-...
 python main.py article <字幕.srt>        # 字幕 → 文章
 python main.py article <视频.mp4>        # 音视频 → 文章
 python main.py article <URL>             # YouTube URL → 文章
+python main.py article --simple <输入>   # 使用快速产出模式
 
 # 单步调试
 python main.py debug preprocess <字幕.srt>
@@ -87,11 +88,10 @@ python main.py debug synthesize <02_structure.json> <03_insights.md>
 # 周边
 python main.py stt      <视频>                  # 仅语音转文字
 python main.py review   <文章.md>               # 审阅
-python main.py probe    <URL>                   # 探测字幕、标题、时长
+python main.py info     <URL>                   # 获取视频信息
 python main.py download <URL>                   # URL → SRT
+python main.py download --media audio <URL>     # URL → 下载音频
 python main.py uploads  <@频道>                 # 频道最新视频列表
-
-所有命令支持 --dry-run 空跑。
 ```
 
 ## 输出目录

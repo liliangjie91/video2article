@@ -230,12 +230,12 @@ def cmd_uploads(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="video2article — 字幕 → 文章",
+        description="video2article — 字幕/音视频/URL/ID → 文章",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
     # article (unified entry — auto-detects input type)
-    p = sub.add_parser("article", help="字幕/音视频/URL → 文章（自动检测类型）")
+    p = sub.add_parser("article", help="字幕/音视频/URL/ID → 文章（自动检测类型）")
     p.add_argument("input", help="字幕文件(.srt/.vtt)、音视频文件(.mp4等) 或 YouTube URL/ID")
     p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
@@ -276,21 +276,20 @@ def main():
     p.set_defaults(func=cmd_review)
 
     # stt
-    p = sub.add_parser("stt", help="语音转文字")
+    p = sub.add_parser("stt", help="语音转文字 -> 生成字幕文件")
     p.add_argument("video", help="视频文件路径")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
     p.set_defaults(func=cmd_stt)
 
     # ── URL commands ──
-    p = sub.add_parser("info", help="获取 URL 信息（可用字幕、标题等）")
-    p.add_argument("url", help="视频 URL")
+    p = sub.add_parser("info", help="获取视频信息（可用字幕，标题，频道名称等）")
+    p.add_argument("url", help="视频URL或ID")
     p.set_defaults(func=cmd_info)
 
-    p = sub.add_parser("download", help="URL → SRT 字幕（自动选择最快路径）")
-    p.add_argument("url", help="视频 URL")
+    p = sub.add_parser("download", help="URL/ID → SRT字幕(默认) or 音视频")
+    p.add_argument("url", help="视频URL或ID")
     p.add_argument("--output-dir", "-o", default=None, help="下载目录")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--force", "-f", action="store_true", help="忽略缓存，重新下载")
     p.add_argument("--media", choices=["video", "audio", "subtitle"], default="subtitle", help="媒体类型")
     p.set_defaults(func=cmd_download)
 

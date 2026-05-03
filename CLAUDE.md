@@ -69,6 +69,7 @@ subtitle.srt / video.mp4 / YouTube URL
 
 ```bash
 python main.py article <subtitle.srt> / <video.mp4> / <url>                # 字幕/音视频/url/video_id → 文章 （自动检测格式）
+python main.py article --simple <input>                                    # 使用快速产出模式而非分步执行
 
 # 单阶段调试
 python main.py debug preprocess <subtitle.srt>
@@ -82,12 +83,13 @@ python main.py review <article.md>                    # 文章审阅 (单篇)
 python main.py review <article1.md> <article2.md>     # 文章对比 (多篇)
 
 # URL 命令
-python main.py probe <url>                            # 探测字幕、标题、时长
+python main.py info <url>                             # 获取视频信息（标题、可用字幕等）
 python main.py download <url>                         # URL → SRT（API 直取 / yt-dlp+STT 兜底）
+python main.py download --media audio <url>           # URL → 下载音频文件
 python main.py uploads <@channel>                     # 频道最新视频列表
 ```
 
-所有命令支持 `--dry-run` 参数进行空跑验证。
+`article`、`download`、`review` 命令支持 `--dry-run` 参数进行空跑验证。
 
 ## 输出结构
 
