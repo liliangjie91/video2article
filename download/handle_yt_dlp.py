@@ -44,6 +44,8 @@ def download(url: str, output_dir: str = "../output", down_type: str = "audio") 
     Returns:
         Path to the downloaded file.
     """
+    default_output = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "output"))
+    output_dir = output_dir or default_output
     os.makedirs(output_dir, exist_ok=True)
 
     # Check cache by video_id (zero network)
@@ -58,6 +60,7 @@ def download(url: str, output_dir: str = "../output", down_type: str = "audio") 
     ydl_opts = _build_ydl_opts(output_dir, down_type)
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        logger.info("Downloading %s via yt-dlp: %s \n using download opts: \n %s", down_type, url, ydl_opts)
         info = ydl.extract_info(url, download=True)
     res_file = ydl.prepare_filename(info)
 

@@ -44,7 +44,7 @@ def _project_dir(filepath: str, output_dir: str | None) -> str:
     abs_path = os.path.abspath(filepath)
     output_abs = os.path.join(os.path.dirname(__file__), "output")
 
-    if abs_path.startswith(output_abs):
+    if abs_path.startswith(output_abs) and abs_path != output_abs:
         return os.path.dirname(abs_path)
 
     name = os.path.splitext(os.path.basename(filepath))[0]
@@ -55,15 +55,21 @@ def _project_dir(filepath: str, output_dir: str | None) -> str:
 # ── Core commands ──────────────────────────────────────────────
 
 
-def _run_article_pipeline(subtitle_path: str, output_dir: str, tier: str, dry_run: bool) -> str | None:
+def _run_article_pipeline(subtitle_path: str, output_dir: str, tier: str, dry_run: bool, simple: bool = False) -> str | None:
     """字幕 → 文章 pipeline。返回文章路径，dry_run 时返回 None。"""
-    from pipeline import preprocess, structure, insights, synthesize
     out = _project_dir(subtitle_path, output_dir)
     log.info("Running article pipeline: %s", out)
     if dry_run:
         log.info("[dry-run] article pipeline would output to: %s", out)
         return None
 
+    if simple:
+        from pipeline.simple import run as simple_run
+        syn = simple_run(subtitle_path, out, tier=tier)
+        log.info("Simple article complete: %s", syn)
+        return syn
+
+    from pipeline import preprocess, structure, insights, synthesize
     pp = preprocess.run(subtitle_path, out, tier=tier)
     st = structure.run(pp, out, tier=tier)
     ins = insights.run(st, out, tier=tier)
@@ -89,14 +95,14 @@ def cmd_article(args):
     """字幕/音视频/URL → 文章（自动检测输入类型）"""
     input_type = _detect_input_type(args.input)
     if input_type == "srt":
-        _run_article_pipeline(args.input, args.output_dir, args.tier, args.dry_run)
+        _run_article_pipeline(args.input, args.output_dir, args.tier, args.dry_run, args.simple)
     elif input_type == "media":
         from stt.transcribe import run as stt_run
         srt_path = stt_run(args.input)
-        _run_article_pipeline(srt_path, args.output_dir, args.tier, args.dry_run)
+        _run_article_pipeline(srt_path, args.output_dir, args.tier, args.dry_run, args.simple)
     else:
         srt_path = _resolve_subtitle(args.input, args.output_dir)
-        _run_article_pipeline(srt_path, args.output_dir, args.tier, args.dry_run)
+        _run_article_pipeline(srt_path, args.output_dir, args.tier, args.dry_run, args.simple)
 
 
 # ── Single-stage debug commands ────────────────────────────────
@@ -104,48 +110,28 @@ def cmd_article(args):
 
 def cmd_preprocess(args):
     from pipeline import preprocess
-
-    out = _project_dir(args.subtitle, args.output_dir)
-
-    if args.dry_run:
-        log.info("[dry-run] preprocess %s → %s", args.subtitle, out)
-        return
+    out = _project_dir(args.subtitle)
     pp = preprocess.run(args.subtitle, out, tier=args.tier)
     log.info("Preprocess complete: %s", pp)
 
 
 def cmd_structure(args):
     from pipeline import structure
-
     out = os.path.dirname(os.path.abspath(args.preprocessed))
-
-    if args.dry_run:
-        log.info("[dry-run] structure %s → %s", args.preprocessed, out)
-        return
     st = structure.run(args.preprocessed, out, tier=args.tier)
     log.info("Structure complete: %s", st)
 
 
 def cmd_insights(args):
     from pipeline import insights
-
     out = os.path.dirname(os.path.abspath(args.structure))
-
-    if args.dry_run:
-        log.info("[dry-run] insights → %s", out)
-        return
     ins = insights.run(args.structure, out, tier=args.tier)
     log.info("Insights complete: %s", ins)
 
 
 def cmd_synthesize(args):
     from pipeline import synthesize
-
     out = os.path.dirname(os.path.abspath(args.structure))
-
-    if args.dry_run:
-        log.info("[dry-run] synthesize → %s", out)
-        return
     syn = synthesize.run(args.structure, args.insights, out, tier=args.tier)
     log.info("Synthesize complete: %s", syn)
 
@@ -164,21 +150,6 @@ def cmd_review(args):
     log.info("Review complete: %s", r)
 
 
-def cmd_simple(args):
-    """字幕 → 文章 (一步到位，用于快速产出或对比)"""
-    from pipeline.simple import run as simple_run
-    
-    out = _project_dir(args.subtitle, args.output_dir)
-
-    if args.dry_run:
-        log.info("[dry-run] simple %s → %s", args.subtitle, out)
-        return
-
-    r = simple_run(args.subtitle, out, tier=args.tier)
-    log.info("Simple article complete: %s", r)
-
-
-
 # ── Peripheral commands ─────────────────────────────────────────
 
 def cmd_stt(args):
@@ -191,7 +162,6 @@ def cmd_stt(args):
 
 
 # ── URL / Download commands ──────────────────────────────────────
-
 
 def _resolve_subtitle(url: str, output_dir: str | None) -> str:
     """Try YouTube subs first, fall back to yt-dlp download + STT. Returns SRT path.
@@ -250,7 +220,18 @@ def cmd_download(args):
     if args.dry_run:
         log.info("[dry-run] Would download: %s", args.url)
         return
+    if args.media != "subtitle":
+        # if args.media is specified, download video or audio file, but not subtitles
+        if args.media not in ("video", "audio"):
+            log.error("Invalid media type: %s. Must be 'video' or 'audio'.", args.media)
+            return
+        from download.handle_yt_dlp import download as dl_download
+        log.info("Downloading %s via yt-dlp...", args.media)
+        media_path = dl_download(args.url, args.output_dir, down_type=args.media)
+        log.info("Downloaded : %s", media_path)
+        return
     srt_path = _resolve_subtitle(args.url, args.output_dir)
+    log.info("Download complete: %s", srt_path)
 
 def cmd_uploads(args):
     """List recent uploads from a YouTube channel."""
@@ -281,37 +262,33 @@ def main():
     p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
     p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
+    p.add_argument("--simple", action="store_true", help="使用一步到位的快速产出而非分步执行")
     p.set_defaults(func=cmd_article)
 
-    # preprocess
-    p = sub.add_parser("preprocess", help="[单阶段] 字幕预处理")
-    p.add_argument("subtitle", help="字幕文件路径")
-    p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
-    p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--tier", choices=["fast", "best", "top"], default="fast", help="模型档位")
-    p.set_defaults(func=cmd_preprocess)
+    # debug (single-stage subcommands)
+    p = sub.add_parser("debug", help="单阶段调试命令")
+    debug_sub = p.add_subparsers(dest="debug_command")
 
-    # structure
-    p = sub.add_parser("structure", help="[单阶段] 结构识别")
-    p.add_argument("preprocessed", help="01_preprocessed.txt 路径")
-    p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
-    p.set_defaults(func=cmd_structure)
+    pp = debug_sub.add_parser("preprocess", help="字幕预处理")
+    pp.add_argument("subtitle", help="字幕文件路径")
+    pp.add_argument("--tier", choices=["fast", "best", "top"], default="fast", help="模型档位")
+    pp.set_defaults(func=cmd_preprocess)
 
-    # insights
-    p = sub.add_parser("insights", help="[单阶段] 深度挖掘")
-    p.add_argument("structure", help="02_structure.json 路径")
-    p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
-    p.set_defaults(func=cmd_insights)
+    pp = debug_sub.add_parser("structure", help="结构识别")
+    pp.add_argument("preprocessed", help="01_preprocessed.txt 路径")
+    pp.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
+    pp.set_defaults(func=cmd_structure)
 
-    # synthesize
-    p = sub.add_parser("synthesize", help="[单阶段] 合成撰写")
-    p.add_argument("structure", help="02_structure.json 路径")
-    p.add_argument("insights", help="03_insights.md 路径")
-    p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
-    p.set_defaults(func=cmd_synthesize)
+    pp = debug_sub.add_parser("insights", help="深度挖掘")
+    pp.add_argument("structure", help="02_structure.json 路径")
+    pp.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
+    pp.set_defaults(func=cmd_insights)
+
+    pp = debug_sub.add_parser("synthesize", help="合成撰写")
+    pp.add_argument("structure", help="02_structure.json 路径")
+    pp.add_argument("insights", help="03_insights.md 路径")
+    pp.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
+    pp.set_defaults(func=cmd_synthesize)
 
     # review
     p = sub.add_parser("review", help="文章审阅与对比 (Stage 5)")
@@ -320,18 +297,9 @@ def main():
     p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     p.set_defaults(func=cmd_review)
 
-    # simple
-    p = sub.add_parser("simple", help="字幕 → 文章 (一步到位，快速产出)")
-    p.add_argument("subtitle", help="字幕文件路径 (.srt/.vtt)")
-    p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
-    p.add_argument("--dry-run", action="store_true", help="只打印不执行")
-    p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
-    p.set_defaults(func=cmd_simple)    
-
     # stt
     p = sub.add_parser("stt", help="语音转文字")
     p.add_argument("video", help="视频文件路径")
-    p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
     p.set_defaults(func=cmd_stt)
 
@@ -346,6 +314,7 @@ def main():
     p.add_argument("--output-dir", "-o", default=None, help="下载目录")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
     p.add_argument("--force", "-f", action="store_true", help="忽略缓存，重新下载")
+    p.add_argument("--media", choices=["video", "audio", "subtitle"], default="subtitle", help="媒体类型")
     p.set_defaults(func=cmd_download)
 
     p = sub.add_parser("uploads", help="查看 YouTube 频道最新视频列表")

@@ -71,10 +71,10 @@ subtitle.srt / video.mp4 / YouTube URL
 python main.py article <subtitle.srt> / <video.mp4> / <url>                # 字幕/音视频/url/video_id → 文章 （自动检测格式）
 
 # 单阶段调试
-python main.py preprocess <subtitle.srt>
-python main.py structure <01_preprocessed.txt>
-python main.py insights <01_preprocessed.txt> <02_structure.json>
-python main.py synthesize <01_preprocessed.txt> <02_structure.json> <03_insights.md>
+python main.py debug preprocess <subtitle.srt>
+python main.py debug structure <01_preprocessed.txt>
+python main.py debug insights <01_preprocessed.txt> <02_structure.json>
+python main.py debug synthesize <01_preprocessed.txt> <02_structure.json> <03_insights.md>
 
 # 周边
 python main.py stt <video.mp4>

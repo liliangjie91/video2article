@@ -79,10 +79,10 @@ python main.py article <视频.mp4>        # 音视频 → 文章
 python main.py article <URL>             # YouTube URL → 文章
 
 # 单步调试
-python main.py preprocess <字幕.srt>
-python main.py structure  <01_preprocessed.txt>
-python main.py insights   <02_structure.json>
-python main.py synthesize <02_structure.json> <03_insights.md>
+python main.py debug preprocess <字幕.srt>
+python main.py debug structure  <01_preprocessed.txt>
+python main.py debug insights   <02_structure.json>
+python main.py debug synthesize <02_structure.json> <03_insights.md>
 
 # 周边
 python main.py stt      <视频>                  # 仅语音转文字
