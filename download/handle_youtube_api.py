@@ -16,28 +16,6 @@ from youtube_transcript_api._errors import (
 logger = logging.getLogger(__name__)
 
 
-def list_transcripts(url: str) -> Optional[list[dict]]:
-    """Probe available subtitles for a YouTube video.
-
-    Returns list of {language, language_code, is_generated} or None on failure.
-    """
-    video_id = extract_video_id(url)
-    try:
-        transcript_list = YouTubeTranscriptApi().list(video_id)
-    except (VideoUnavailable, TranscriptsDisabled, NoTranscriptFound) as e:
-        logger.info("No transcripts available for %s: %s", video_id, e)
-        return None
-
-    results = []
-    for t in transcript_list:
-        results.append({
-            "language": t.language,
-            "language_code": t.language_code,
-            "is_generated": t.is_generated,
-        })
-    return results
-
-
 def get_subtitle_srt(url: str, output_dir: str, language: Optional[str] = "zh") -> Optional[str]:
     """Fetch YouTube subtitles and save as SRT file.
 
@@ -60,7 +38,7 @@ def get_subtitle_srt(url: str, output_dir: str, language: Optional[str] = "zh") 
     output_dir = os.path.join(
         output_dir,
         video_info.get("channel_title", "unknown_channel"),
-        f"{video_info.get("publish_date", "unknown_date")}_{video_id}",
+        f'{video_info.get("publish_date", "unknown_date")}_{video_id}',
     )
     os.makedirs(output_dir, exist_ok=True)
     srt_path = os.path.join(output_dir, f"{video_id}.srt")
@@ -68,34 +46,20 @@ def get_subtitle_srt(url: str, output_dir: str, language: Optional[str] = "zh") 
         logger.info("SRT already exists, skipping: %s", srt_path)
         return srt_path
 
+    available_transcripts = video_info.get("transcript_lang_code", "NOKEY")
+    # NOAVAILABLE is a special marker meaning we already probed and found no transcripts, so skip trying again
+    if available_transcripts == "NOAVAILABLE":
+        logger.info("No transcripts available for %s", video_id)
+        return None
     # Fetch transcript
-    ## list available transcripts to check for preferred language
-    ytt_api = YouTubeTranscriptApi()
-
-    try:
-        transcript_list = ytt_api.list(video_id)
-    except VideoUnavailable:
-        logger.warning("Video unavailable: %s", video_id)
-        return None
-    except TranscriptsDisabled:
-        logger.info("Transcripts disabled for: %s", video_id)
-        return None
-
     ## Try to fetch transcript
+    ytt_api = YouTubeTranscriptApi()
+    default_langs = ["zh", "zh-Hans", "zh-Hant", "zh-CN", "zh-TW", "zh-HK", "en"] + available_transcripts.split(';')
     try:
-        if language:
-            transcript = transcript_list.find_transcript([language]).fetch()
-        else:
-            transcript = ytt_api.fetch(video_id)
-    except (NoTranscriptFound, TranscriptsDisabled):
-        # Fallback: try any available transcript
-        try:
-            transcript = transcript_list.find_transcript(
-                [t.language_code for t in transcript_list]
-            ).fetch()
-        except (NoTranscriptFound, TranscriptsDisabled, StopIteration):
-            logger.info("No usable transcript found for: %s", video_id)
-            return None
+        transcript = ytt_api.fetch(video_id, languages=default_langs if not language else [language] + default_langs)
+    except (NoTranscriptFound, TranscriptsDisabled, VideoUnavailable) as e:
+        logger.info("No usable transcript found for: %s", video_id)
+        return None
 
     ## Save as SRT
     with open(srt_path, "w", encoding="utf-8") as f:
@@ -161,10 +125,10 @@ def get_channel_uploads(identifier: str, max_results: int = 5) -> Optional[list[
         snippet = item["snippet"]
         resource = snippet.get("resourceId", {})
         items.append({
-            "title": snippet.get("title", ""),
             "channel_title": snippet.get("channelTitle", ""),
+            "published_at": snippet.get("publishedAt", "")[:10],
             "video_id": resource.get("videoId", ""),
-            "published_at": snippet.get("publishedAt", ""),
+            "title": snippet.get("title", ""),
         })
 
     return items
@@ -174,9 +138,8 @@ def get_video_info_from_id(video_id: str) -> Optional[dict]:
     """Get basic video info (title, channel) from YouTube URL using Data API."""
     cached = get_cache("info", video_id)
     if cached:
-        logger.info("Cache hit (info): %s", cached)
+        logger.info("Cache hit: %s", '; '.join([v for v in cached.values()]))
         return cached
-
 
     api_key = YOUTUBE_API_KEY
     if not api_key:
@@ -196,10 +159,35 @@ def get_video_info_from_id(video_id: str) -> Optional[dict]:
     published = result.pop("publishedAt")
     result["publish_date"] = published[:10].replace("-", "")
     result["channel_title"] = result.pop("channelTitle")
-    logger.info("Fetched video info: %s", result)
+
+    # get transcript info
+    transcript_info = _list_transcripts(video_id)
+    result.update(transcript_info)
+    # logger.info("Fetched video info: %s", '; '.join([v for v in result.values()]))
+
+    logger.info("Fetched video info done")
     write_cache("info", video_id, result)
     return result
 
+def _list_transcripts(url: str) -> dict:
+    """Probe available subtitles for a YouTube video.
+
+    Returns list of {language, language_code, is_generated} or None on failure.
+    """
+    video_id = extract_video_id(url)
+    try:
+        transcript_list = YouTubeTranscriptApi().list(video_id)
+    except (VideoUnavailable, TranscriptsDisabled, NoTranscriptFound) as e:
+        logger.info("No transcripts available for %s: %s", video_id, e)
+        return {"transcript_lang_code": "NOAVAILABLE"}
+    
+    trans_lan_code_set = set()
+    for t in transcript_list:
+        trans_lan_code_set.add(t.language_code)
+    
+    logline = ';'.join(trans_lan_code_set)
+    logger.info("Available transcripts for %s: %s", video_id, logline)
+    return {"transcript_lang_code": logline}
 
 def _extract_channel_id(input_str: str) -> tuple[str, str]:
     """Extract channel identifier and type from various formats."""
