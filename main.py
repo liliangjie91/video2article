@@ -187,33 +187,11 @@ def _resolve_subtitle(url: str, output_dir: str | None) -> str:
     return stt_run(audio_path)
 
 
-def cmd_probe(args):
+def cmd_info(args):
     """Probe what's available for a URL (subtitles, video info)."""
-    from download.handle_youtube_api import list_transcripts, extract_video_id
-
-    video_id = extract_video_id(args.url)
-    log.info("Video ID: %s", video_id)
-
-    subs = list_transcripts(args.url)
-    if subs:
-        log.info("Available subtitles (%d):", len(subs))
-        for s in subs:
-            tag = " (auto)" if s["is_generated"] else " (manual)"
-            log.info("  %s (%s)%s", s["language"], s["language_code"], tag)
-    else:
-        log.info("No subtitles available — would need STT fallback")
-
-    if args.verbose:
-        import yt_dlp
-        with yt_dlp.YoutubeDL({"quiet": True}) as ydl:
-            try:
-                info = ydl.extract_info(args.url, download=False)
-                log.info("Title: %s", info.get("title"))
-                log.info("Duration: %s s", info.get("duration"))
-                log.info("Uploader: %s", info.get("uploader"))
-            except Exception as e:
-                log.warning("Could not fetch video info: %s", e)
-
+    from download.handle_youtube_api import get_video_info_from_id
+    video_info = get_video_info_from_id(args.url)
+    log.info("Video info for %s:\n%s", args.url, '\n'.join([f"{k}: {v}" for k, v in video_info.items()]))
 
 def cmd_download(args):
     """URL → SRT subtitle (try YouTube API first, fallback to yt-dlp + STT)."""
@@ -304,10 +282,9 @@ def main():
     p.set_defaults(func=cmd_stt)
 
     # ── URL commands ──
-    p = sub.add_parser("probe", help="探测 URL 信息（字幕、标题、时长等）")
+    p = sub.add_parser("info", help="获取 URL 信息（可用字幕、标题等）")
     p.add_argument("url", help="视频 URL")
-    p.add_argument("--verbose", "-v", action="store_true", help="显示详细信息")
-    p.set_defaults(func=cmd_probe)
+    p.set_defaults(func=cmd_info)
 
     p = sub.add_parser("download", help="URL → SRT 字幕（自动选择最快路径）")
     p.add_argument("url", help="视频 URL")
