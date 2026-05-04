@@ -12,7 +12,16 @@ logger = logging.getLogger(__name__)
 
 
 def _model_dir() -> str:
-    """Resolve whisper model cache directory from config."""
+    """Resolve whisper model cache directory from config.
+
+    Priority: WHISPER_MODEL_DIR env var > config.ini [stt] model_dir > models/whisper
+    """
+    env_path = os.environ.get("WHISPER_MODEL_DIR")
+    if env_path:
+        abspath = os.path.join(os.path.dirname(os.path.dirname(__file__)), env_path)
+        os.makedirs(abspath, exist_ok=True)
+        return abspath
+
     cfg = get_config()
     path = cfg.get("stt", "model_dir", fallback="models/whisper")
     abspath = os.path.join(os.path.dirname(os.path.dirname(__file__)), path)

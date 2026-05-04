@@ -6,17 +6,20 @@ on:
       url:
         description: "视频 URL"
         required: true
-      mode:
-        description: "管线模式"
-        default: "article"
+      tier:
+        description: "模型档位"
+        default: "fast"
         type: choice
         options:
-          - article
-          - full
+          - fast
+          - best
+          - top
+      simple:
+        description: "快速模式（一步到位）"
+        default: false
+        type: boolean
 
 env:
-  # 在此添加 LLM API key（从 GitHub Secrets 读取）
-  # 例如 DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
   DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
 
 jobs:
@@ -35,6 +38,7 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
 
+      # STT 兜底需要 faster-whisper 模型，缓存避免重复下载
       - name: Cache faster-whisper models
         uses: actions/cache@v4
         with:
@@ -47,22 +51,25 @@ jobs:
       - name: Install Python deps
         run: pip install -r requirements.txt
 
-      # 本地 config.ini 的 model_dir 指向 macOS 绝对路径，在 CI 上不可用
-      - name: Override model_dir for CI
+      # 如果没有字幕（走 STT 兜底），需要预下载 whisper 模型
+      - name: Pre-download whisper model (for STT fallback)
         run: |
+          mkdir -p models/whisper
           python -c "
-import configparser
-c = configparser.ConfigParser()
-c.read('config.ini')
-c['stt']['model_dir'] = 'models/whisper'
-with open('config.ini', 'w') as f:
-    c.write(f)
-"
+from faster_whisper import WhisperModel
+WhisperModel('large-v3-turbo', device='cpu', compute_type='int8', download_root='models/whisper')
+          "
 
+      # 让 faster-whisper 从缓存目录加载，而非 config.ini 里的 macOS 路径
       - name: Run pipeline
+        env:
+          WHISPER_MODEL_DIR: models/whisper
         run: |
-          CMD="${{ inputs.mode == 'full' && 'full-from-url' || 'article-from-url' }}"
-          python main.py "$CMD" "${{ inputs.url }}"
+          ARGS="${{ inputs.url }} --tier ${{ inputs.tier }}"
+          if [[ "${{ inputs.simple }}" == "true" ]]; then
+            ARGS="$ARGS --simple"
+          fi
+          python main.py article $ARGS
 
       - name: Upload output artifacts
         uses: actions/upload-artifact@v4
