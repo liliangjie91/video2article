@@ -53,12 +53,7 @@ jobs:
 
       # 如果没有字幕（走 STT 兜底），需要预下载 whisper 模型
       - name: Pre-download whisper model (for STT fallback)
-        run: |
-          mkdir -p models/whisper
-          python -c "
-from faster_whisper import WhisperModel
-WhisperModel('large-v3-turbo', device='cpu', compute_type='int8', download_root='models/whisper')
-          "
+        run: python -c "from faster_whisper import WhisperModel; WhisperModel('large-v3-turbo', device='cpu', compute_type='int8', download_root='models/whisper')"
 
       # 让 faster-whisper 从缓存目录加载，而非 config.ini 里的 macOS 路径
       - name: Run pipeline
