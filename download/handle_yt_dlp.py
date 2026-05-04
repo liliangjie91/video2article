@@ -69,9 +69,8 @@ def download(url: str, output_dir: str = "../output", down_type: str = "audio") 
         raise FileNotFoundError(f"Downloaded file not found for {url} in {output_dir}")
     logger.info("Downloaded %s: %s —> %s", down_type, info.get("title", url), res_file)
 
-    # Update cache
-    actual_id = info.get("id") or vid
-    if actual_id:
-        write_cache(down_type, actual_id, res_file)
+    # Update cache (use vid as key, consistent with lookup above)
+    if vid:
+        write_cache(down_type, vid, res_file)
 
     return res_file

@@ -25,6 +25,23 @@ YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 CACHE_FILE = os.path.join(os.path.dirname(__file__), ".download.cache")
 CACHE_TYPES = frozenset({"video", "audio", "info"})
 
+# Known non-YouTube platforms that yt-dlp can handle directly
+_KNOWN_NON_YOUTUBE = {"bilibili.com", "b23.tv", "nicovideo.jp", "vimeo.com"}
+
+
+def is_youtube_url(url: str) -> bool:
+    """Check whether a URL targets YouTube.
+
+    Returns True for ``youtube.com``/``youtu.be`` links or bare video IDs
+    (the default assumption). Returns False for known non-YouTube platforms.
+    """
+    if "youtube.com" in url or "youtu.be" in url:
+        return True
+    # Bare video ID: no path separators, no dots, not an http link
+    if "/" not in url and "." not in url and not url.startswith("http"):
+        return True
+    return not any(p in url for p in _KNOWN_NON_YOUTUBE)
+
 
 def _read_cache(type: str | None = None) -> dict[str, dict[str, str]]:
     """Read download cache, filtering by type if given."""
@@ -89,7 +106,7 @@ def write_cache(type: str, video_id: str, data: str | dict) -> None:
 
 
 def extract_video_id(url: str) -> str:
-    """Extract YouTube video ID from URL or return as-is."""
+    """Extract YouTube video ID from URL, or clean URL for cache key."""
     if "youtube.com" in url or "youtu.be" in url:
         if "youtu.be" in url:
             return url.split("/")[-1].split("?")[0]
@@ -97,4 +114,6 @@ def extract_video_id(url: str) -> str:
         parsed = urllib.parse.urlparse(url)
         qs = urllib.parse.parse_qs(parsed.query)
         return qs.get("v", [url])[0]
-    return url
+    # Clean non-YouTube URL for cache key: strip query params and trailing slash
+    clean = url.split("?")[0] if "?" in url else url
+    return clean.rstrip("/")

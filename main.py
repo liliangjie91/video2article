@@ -164,20 +164,24 @@ def cmd_stt(args):
 # ── URL / Download commands ──────────────────────────────────────
 
 def _resolve_subtitle(url: str, output_dir: str | None) -> str:
-    """Try YouTube subs first, fall back to yt-dlp download + STT. Returns SRT path.
+    """Return SRT path for a URL. Uses YouTube API first, falls back to yt-dlp+STT.
 
-    Cache-aware: skips download if SRT/audio already exists.
+    For non-YouTube URLs (bilibili, etc.), skips YouTube API and goes directly to yt-dlp.
     """
-    # modify output_dir
     default_output = os.path.join(os.path.dirname(__file__), "output")
     output_dir = output_dir or default_output
 
-    # Try 1: YouTube subtitles via API (zero download)
-    from download.handle_youtube_api import get_subtitle_srt
-    srt = get_subtitle_srt(url, output_dir)
-    if srt is not None:
-        return srt
-    
+    from download import is_youtube_url
+    if is_youtube_url(url):
+        # Try 1: YouTube subtitles via API (zero download)
+        from download.handle_youtube_api import get_subtitle_srt
+        srt = get_subtitle_srt(url, output_dir)
+        if srt is not None:
+            return srt
+        log.info("No YouTube subtitles, falling back to yt-dlp...")
+    else:
+        log.info("Non-YouTube URL, using yt-dlp directly...")
+        
     # Try 2: yt-dlp audio → STT
     from download.handle_yt_dlp import download as dl_download
     from stt.transcribe import run as stt_run

@@ -60,6 +60,9 @@ def get_subtitle_srt(url: str, output_dir: str, language: Optional[str] = "zh") 
     except (NoTranscriptFound, TranscriptsDisabled, VideoUnavailable) as e:
         logger.info("No usable transcript found for: %s", video_id)
         return None
+    except Exception as e:
+        logger.warning("Error fetching transcript for %s: %s", video_id, e)
+        return None
 
     ## Save as SRT
     with open(srt_path, "w", encoding="utf-8") as f:
