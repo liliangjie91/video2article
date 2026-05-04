@@ -180,6 +180,9 @@ def _list_transcripts(url: str) -> dict:
     except (VideoUnavailable, TranscriptsDisabled, NoTranscriptFound) as e:
         logger.info("No transcripts available for %s: %s", video_id, e)
         return {"transcript_lang_code": "NOAVAILABLE"}
+    except Exception as e:
+        logger.warning("Error fetching transcripts for %s: %s", video_id, e)
+        return {"transcript_lang_code": "NOAVAILABLE"}
     
     trans_lan_code_set = set()
     for t in transcript_list:
