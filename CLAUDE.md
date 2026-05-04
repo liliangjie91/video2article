@@ -52,14 +52,23 @@ subtitle.srt / video.mp4 / YouTube URL
    [TTS: 文章→语音]          ← tts/speak.py (可选后置)
 ```
 
-### 关键抽象
+### 项目文件
 
-- **`llm.py`** — 核心 LLM 封装。`chat()` 透传 config 给 litellm，主模型失败时自动 fallback。所有 provider 统一由 litellm 调度。自动记录请求/响应到 `llm_logs/`。
-- **`config.py`** — 两级配置加载 (`fast`/`best`)。已知 provider 返回 `{model}`；未知 provider 按约定从 `.env` 读取 `{PROVIDER}_API_KEY` 等变量，映射为 `openai/` 或 `anthropic/` 前缀再传给 litellm。
+- **`main.py`** — 薄 CLI 入口，仅 logging + argparse 定义，命令分发到 `commands.py`。
+- **`commands.py`** — 所有命令处理函数 (`cmd_*`) + 核心流程 (`process_one`, `process_batch`)。
+- **`utils/__init__.py`** — 通用工具函数：`project_dir()`（输出路径确定）、`detect_input_type()`（输入格式检测）、字幕/音视频扩展名判断。
 - **`utils/parser.py`** — 字幕解析统一接口，支持 SRT、VTT、Simple (`[HH:MM:SS] text`) 三种格式，输出统一的 `list[tuple[int, int, str]]`（start_ms, end_ms, text）。
-- **`download/__init__.py`** — 下载模块入口 + 缓存管理。`.download.cache` 以 `type,video_id,path` 格式缓存下载路径和视频信息（info），`get_cache(type, video_id)` 统一查询，支持 `info` 返回 dict。
-- **`download/handle_youtube_api.py`** — YouTube 字幕直取（`youtube-transcript-api`，无需 API key）和频道上传列表（需 `YOUTUBE_API_KEY`）。自动缓存视频 info 到 `.download.cache`。
-- **`download/handle_yt_dlp.py`** — yt-dlp 音频/视频下载兜底。缓存按 `type`（audio/video）区分，避免重复下载。
+- **`llm.py`** — 核心 LLM 封装。`chat()` 透传 config 给 litellm，主模型失败时自动 fallback。
+- **`config.py`** — 两级配置加载 (`fast`/`best`)。
+- **`download/__init__.py`** — 下载模块入口 + 缓存管理。`.download.cache` 以 `type,video_id,path` 格式缓存下载路径和视频信息（info），`get_cache(type, video_id)` 统一查询。
+- **`download/handle_youtube_api.py`** — YouTube 字幕直取（`youtube-transcript-api`，无需 API key）和频道上传列表（需 `YOUTUBE_API_KEY`）。
+- **`download/handle_yt_dlp.py`** — yt-dlp 音频/视频下载兜底。
+
+### 核心函数
+
+- **`commands:process_one()`** — 统一入口：输入任意格式（SRT/音视频/URL/ID），自动检测类型并执行完整 pipeline。
+- **`commands:process_batch()`** — 批量处理多个输入的核心循环，供 `cmd_batch` 和 future `uploads --process` 共用。
+- **`commands:_run_article_pipeline()`** — SRT → 文章的四阶段管线。
 
 ### Pipeline 模块约定
 
@@ -87,6 +96,13 @@ python main.py info <url>                             # 获取视频信息（标
 python main.py download <url>                         # URL → SRT（API 直取 / yt-dlp+STT 兜底）
 python main.py download --media audio <url>           # URL → 下载音频文件
 python main.py uploads <@channel>                     # 频道最新视频列表
+
+# 批处理
+python main.py batch <url1> <url2>                         # 多个输入逐个生成文章
+python main.py batch -f urls.txt                            # 从文件读输入列表
+python main.py batch --from-channel @channel                # 从频道拉取视频处理
+python main.py batch --from-channel @channel --limit 5      # 限制总处理数量
+python main.py batch url1 --from-channel @channel           # 混合来源
 ```
 
 `article`、`download`、`review` 命令支持 `--dry-run` 参数进行空跑验证。
