@@ -1,6 +1,8 @@
 """Utility shared functions."""
 
+import json
 import os
+import re
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _OUTPUT_DIR = os.path.join(_PROJECT_ROOT, "output")
@@ -46,6 +48,69 @@ def detect_input_type(input_str: str) -> str:
     if ext in (".mp4", ".mkv", ".m4a", ".wav", ".mp3", ".webm", ".mov", ".avi"):
         return "media"
     return "url"
+
+
+def extract_json(raw: str) -> str:
+    """Strip markdown fences and extract raw JSON string from LLM output."""
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[-1]
+        if raw.endswith("```"):
+            raw = raw[:-3]
+        raw = raw.strip()
+    return raw
+
+
+def safe_parse_json(raw: str) -> dict:
+    """Parse LLM JSON output with repair attempts for common failures.
+
+    Handles:
+    1. Unescaped double quotes inside string values (most common issue)
+    2. Smart/curly quotes used instead of straight quotes
+    """
+    raw = raw.strip()
+
+    # Attempt 1: direct parse
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+
+    # Attempt 2: escape unescaped double quotes inside string values.
+    # Heuristic: `"` between CJK chars or between CJK and Latin/digit
+    # are content quotes, not JSON delimiters.
+    CJK = r'[\u4e00-\u9fff\u3040-\u30ff\u3000-\u303f\uff00-\uffef]'
+    repaired = re.sub(
+        rf'({CJK})"({CJK})',
+        lambda m: m.group(1) + "\u201c" + m.group(2),
+        raw,
+    )
+    # CJK + " + letter/digit (e.g. 认为"AI)
+    repaired = re.sub(
+        rf'({CJK})"([a-zA-Z0-9])',
+        lambda m: m.group(1) + "\u201c" + m.group(2),
+        repaired,
+    )
+    # letter/digit + " + CJK (e.g. AI"这一)
+    repaired = re.sub(
+        rf'([a-zA-Z0-9])"({CJK})',
+        lambda m: m.group(1) + "\u201d" + m.group(2),
+        repaired,
+    )
+    # CJK + " + Chinese/ASCII punctuation (closing content quote)
+    repaired = re.sub(
+        rf'({CJK})"([\u3000-\u303f,.!?;:\s\uff00-\uffef])',
+        lambda m: m.group(1) + "\u201d" + m.group(2),
+        repaired,
+    )
+    try:
+        return json.loads(repaired)
+    except json.JSONDecodeError:
+        pass
+
+    raise json.JSONDecodeError(
+        f"Failed to parse JSON after repair. Preview: {raw[:300]}", raw, 0
+    )
 
 
 def project_dir(filepath: str, output_dir: str | None = None) -> str:

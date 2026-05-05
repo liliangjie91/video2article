@@ -86,12 +86,12 @@ def run(insights_path: str, outline_path: str, output_dir: str, tier: str = "bes
         prompt_parts = [
             f"全文核心论点：{insights_data.get('overall_thesis', '未知')}",
             "",
+            "## 参考材料",
+            "\n\n".join(context_parts),
+            "",
             f"## 当前写作任务：{oseg.get('heading', '')}",
             f"**严格遵守字数预算**：{oseg.get('word_count_estimate', 500)} 字",
             f"关键论点：{'；'.join(oseg.get('key_points', []))}",
-            "",
-            "## 参考材料",
-            "\n\n".join(context_parts),
             "",
             "请根据以上大纲和参考材料，撰写此段落。",
         ]
