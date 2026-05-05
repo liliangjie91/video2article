@@ -5,6 +5,8 @@ import os
 
 import requests
 
+from ._utils import split_text
+
 logger = logging.getLogger(__name__)
 
 _API_BASE = "https://api.telegram.org/bot{token}"
@@ -74,36 +76,13 @@ def _send_chunks(token: str, chat_id: str, text: str) -> bool:
     if len(text) <= _MAX_MSG:
         return _send_text(url, chat_id, text)
 
-    chunks = _split(text)
+    chunks = split_text(text, _MAX_MSG)
     for i, chunk in enumerate(chunks, 1):
         logger.info("Sending chunk %d/%d (%d chars)", i, len(chunks), len(chunk))
         if not _send_text(url, chat_id, chunk):
             success = False
 
     return success
-
-
-def _split(text: str) -> list[str]:
-    """Split text into ≤4096-char chunks at paragraph boundaries."""
-    chunks: list[str] = []
-    current: list[str] = []
-    current_len = 0
-
-    for para in text.split("\n\n"):
-        para_len = len(para) + 2  # +2 for the "\n\n" separator
-        if current_len + para_len > _MAX_MSG:
-            if current:
-                chunks.append("\n\n".join(current))
-            current = [para]
-            current_len = len(para)
-        else:
-            current.append(para)
-            current_len += para_len
-
-    if current:
-        chunks.append("\n\n".join(current))
-
-    return chunks
 
 
 def _send_text(url: str, chat_id: str, text: str) -> bool:

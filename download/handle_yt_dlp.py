@@ -4,7 +4,7 @@ import logging
 import os
 
 import yt_dlp
-from download import extract_video_id, get_cache, write_cache
+from download._utils import extract_video_id, get_cache, write_cache
 logger = logging.getLogger(__name__)
 
 

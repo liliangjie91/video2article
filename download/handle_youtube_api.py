@@ -4,7 +4,8 @@ import logging
 import os
 from typing import Optional
 
-from download import YOUTUBE_API_BASE, YOUTUBE_API_KEY, extract_video_id, get_cache, write_cache
+from download import YOUTUBE_API_BASE, YOUTUBE_API_KEY
+from download._utils import extract_video_id, get_cache, write_cache
 from utils import format_srt_time
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (

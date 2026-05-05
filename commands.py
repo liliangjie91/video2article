@@ -109,7 +109,7 @@ def _resolve_subtitle(url: str, output_dir: str | None) -> str:
     default_output = os.path.join(_SCRIPT_DIR, "output")
     output_dir = output_dir or default_output
 
-    from download import is_youtube_url
+    from download._utils import is_youtube_url
 
     if is_youtube_url(url):
         from download.handle_youtube_api import get_subtitle_srt
@@ -278,7 +278,7 @@ def cmd_batch(args):
 
 def cmd_deliver(args):
     """投送文章到指定渠道"""
-    from delivery import CHANNELS, deliver_article
+    from delivery.deliver import CHANNELS, deliver_article
 
     channels = args.channel or (CHANNELS if args.all else None)
     results = deliver_article(args.article, channels, as_text=args.as_text)

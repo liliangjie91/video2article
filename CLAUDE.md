@@ -57,14 +57,12 @@ subtitle.srt / video.mp4 / YouTube URL
 
 - **`main.py`** — 薄 CLI 入口，仅 logging + argparse 定义，命令分发到 `commands.py`。
 - **`commands.py`** — 所有命令处理函数 (`cmd_*`) + 核心流程 (`process_one`, `process_batch`)。
-- **`delivery/`** — 文章投送模块。`deliver_article(article_path, channels)` 统一调度，各渠道 (`telegram.py`, `discord.py`) 实现 `deliver(title, body, file_path) -> bool` 接口。
+- **`delivery/`** — 文章投送模块。`__init__.py` 仅初始化；`deliver.py` 提供 `deliver_article()` 调度；各渠道 (`telegram.py`, `discord.py`) 实现 `deliver(title, body, file_path) -> bool` 接口；包内共享工具放 `_utils.py`。
 - **`utils/__init__.py`** — 通用工具函数：`project_dir()`（输出路径确定）、`detect_input_type()`（输入格式检测）、字幕/音视频扩展名判断。
 - **`utils/parser.py`** — 字幕解析统一接口，支持 SRT、VTT、Simple (`[HH:MM:SS] text`) 三种格式，输出统一的 `list[tuple[int, int, str]]`（start_ms, end_ms, text）。
 - **`llm.py`** — 核心 LLM 封装。`chat()` 透传 config 给 litellm，主模型失败时自动 fallback。
 - **`config.py`** — 两级配置加载 (`fast`/`best`)。
-- **`download/__init__.py`** — 下载模块入口 + 缓存管理。`.download.cache` 以 `type,video_id,path` 格式缓存下载路径和视频信息（info），`get_cache(type, video_id)` 统一查询。
-- **`download/handle_youtube_api.py`** — YouTube 字幕直取（`youtube-transcript-api`，无需 API key）和频道上传列表（需 `YOUTUBE_API_KEY`）。
-- **`download/handle_yt_dlp.py`** — yt-dlp 音频/视频下载兜底。
+- **`download/`** — 下载模块。`__init__.py` 仅暴露常量；`_utils.py` 含缓存管理、URL 检测等内部工具；两个子模块 `handle_youtube_api.py` 和 `handle_yt_dlp.py` 分别处理 YouTube API 直取和 yt-dlp 兜底。缓存文件 `.download.cache` 以 `type,video_id,path` 格式存储。`get_cache(type, video_id)` 统一查询。
 
 ### 核心函数
 
@@ -75,6 +73,17 @@ subtitle.srt / video.mp4 / YouTube URL
 ### Pipeline 模块约定
 
 每个 Stage 模块暴露一个 `run(input_path, output_dir) -> output_path` 函数，输出文件自动命名为 `0N_name.ext`。
+
+## 包组织规范
+
+```
+__init__.py     # 仅包初始化（load_dotenv、logger、常量），不放实现代码
+_utils.py       # 包内共享的内部工具函数，以 _ 前缀表明私有
+module.py       # 公开 API，外部通过 from pkg.module import func 导入
+```
+
+- `__init__.py` 不做重导出（`from .module import func`），调用方直接 `from pkg.module import func`
+- 内部工具放在 `_utils.py`，包外不应直接引用
 
 ## CLI
 
@@ -152,7 +161,7 @@ output/<channel_title>/<uploaddate>_<videoid>/
 
 ## 测试
 
-测试文件在 `tests/` 目录，143 个测试：
+测试文件在 `tests/` 目录，149 个测试：
 
 - **第一梯队**（纯函数，无需 mock）：`test_parser.py`、`test_utils.py`、`test_download_cache.py`、`test_config.py`
 - **第二梯队**（mock LLM）：`test_preprocess.py`、`test_structure.py`、`test_insights.py`、`test_outline.py`、`test_synthesize.py`、`test_simple.py`、`test_commands.py`

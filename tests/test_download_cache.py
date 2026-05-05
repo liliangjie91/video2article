@@ -1,7 +1,7 @@
 """Tests for download/__init__.py — cache logic + video ID extraction."""
 
 import pytest
-from download import write_cache, get_cache, extract_video_id, is_youtube_url
+from download._utils import write_cache, get_cache, extract_video_id, is_youtube_url
 
 
 class TestCache:
