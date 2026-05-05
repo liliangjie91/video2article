@@ -43,10 +43,11 @@ subtitle.srt / video.mp4 / YouTube URL
    [Stage 1: 预处理]         ← pipeline/preprocess.py   → 01_preprocessed.txt
    [Stage 2: 结构识别]       ← pipeline/structure.py    → 02_structure.json
    [Stage 3: 深度挖掘] ←核心 ← pipeline/insights.py     → 03_insights.json
-   [Stage 4: 合成撰写]       ← pipeline/synthesize.py   → 04_article.md
+   [Stage 4: 大纲生成]       ← pipeline/outline.py      → 04_outline.json
+   [Stage 5: 逐段合成]       ← pipeline/synthesize.py   → 05_article.md
         │
         ▼
-   [Step 2: 视频截图+图文合成] ← image/screenshot.py    → 05_illustrated.md
+   [Step 2: 视频截图+图文合成] ← image/screenshot.py    → 06_illustrated.md
         │
         ▼
    [TTS: 文章→语音]          ← tts/speak.py (可选后置)
@@ -68,7 +69,7 @@ subtitle.srt / video.mp4 / YouTube URL
 
 - **`commands:process_one()`** — 统一入口：输入任意格式（SRT/音视频/URL/ID），自动检测类型并执行完整 pipeline。
 - **`commands:process_batch()`** — 批量处理多个输入的核心循环，供 `cmd_batch` 和 future `uploads --process` 共用。
-- **`commands:_run_article_pipeline()`** — SRT → 文章的四阶段管线。
+- **`commands:_run_article_pipeline()`** — SRT → 文章的五阶段管线（预处理 → 结构 → 深度挖掘 → 大纲 → 合成）。
 
 ### Pipeline 模块约定
 
@@ -83,8 +84,9 @@ python main.py article --simple <input>                                    # 使
 # 单阶段调试
 python main.py debug preprocess <subtitle.srt>
 python main.py debug structure <01_preprocessed.txt>
-python main.py debug insights <01_preprocessed.txt> <02_structure.json>
-python main.py debug synthesize <01_preprocessed.txt> <02_structure.json> <03_insights.json>
+python main.py debug insights <02_structure.json>               # 注：insights 输入含结构+原文
+python main.py debug outline <03_insights.json>                 # Stage 4 大纲
+python main.py debug synthesize <03_insights.json> <04_outline.json>  # Stage 5 逐段合成
 
 # 周边
 python main.py stt <video.mp4>
@@ -117,9 +119,10 @@ output/<channel_title>/<uploaddate>_<videoid>/
 ├── videoid.srt                   # YouTube API 直取字幕（0 下载）
 ├── 01_preprocessed.txt           # Stage 1
 ├── 02_structure.json             # Stage 2
-├── 03_insights.json                # Stage 3 深度挖掘（JSON）
-├── 04_article.md                 # Stage 4
-├── 05_illustrated.md             # 图文合成（可选）
+├── 03_insights.json                # Stage 3 深度挖掘（JSON，含结构字段）
+├── 04_outline.json                 # Stage 4 写作大纲
+├── 05_article.md                   # Stage 5 逐段合成
+├── 06_illustrated.md               # 图文合成（可选）
 ├── screenshots/
 └── llm_logs/
 ```
@@ -130,7 +133,7 @@ output/<channel_title>/<uploaddate>_<videoid>/
 |------|-------------|
 | 下载字幕/音视频 | `output/<channel>/<date>_<videoid>/<videoid>.<ext>` |
 | STT 转写 | 输入文件所在目录 |
-| 文章管线（Stage 1-4） | 输入文件所在目录 |
+| 文章管线（Stage 1-5） | 输入文件所在目录 |
 | 截图 | pipeline 目录下的 `screenshots/` |
 
 **整体原则**：一个 pipeline = 一个文件夹，从下载到最终文章所有产物集中存放。
@@ -141,9 +144,9 @@ output/<channel_title>/<uploaddate>_<videoid>/
 
 ## 测试
 
-测试文件在 `tests/` 目录，128 个测试：
+测试文件在 `tests/` 目录，143 个测试：
 
 - **第一梯队**（纯函数，无需 mock）：`test_parser.py`、`test_utils.py`、`test_download_cache.py`、`test_config.py`
-- **第二梯队**（mock LLM）：`test_preprocess.py`、`test_structure.py`、`test_insights.py`、`test_synthesize.py`、`test_simple.py`、`test_commands.py`
+- **第二梯队**（mock LLM）：`test_preprocess.py`、`test_structure.py`、`test_insights.py`、`test_outline.py`、`test_synthesize.py`、`test_simple.py`、`test_commands.py`
 
 运行：`pytest -v`。CI 通过 `.github/workflows/test.yml` 自动执行。

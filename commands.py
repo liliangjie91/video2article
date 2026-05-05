@@ -29,12 +29,13 @@ def _run_article_pipeline(
         log.info("Simple article complete: %s", syn)
         return syn
 
-    from pipeline import insights, preprocess, structure, synthesize
+    from pipeline import insights, outline, preprocess, structure, synthesize
 
     pp = preprocess.run(subtitle_path, out, tier=tier)
     st = structure.run(pp, out, tier=tier)
     ins = insights.run(st, out, tier=tier)
-    syn = synthesize.run(st, ins, out, tier=tier)
+    oln = outline.run(ins, out, tier=tier)
+    syn = synthesize.run(ins, oln, out, tier=tier)
     log.info("Article complete: %s", syn)
     return syn
 
@@ -160,16 +161,24 @@ def cmd_insights(args):
     log.info("Insights complete: %s", ins)
 
 
+def cmd_outline(args):
+    from pipeline import outline
+
+    out = os.path.dirname(os.path.abspath(args.insights))
+    oln = outline.run(args.insights, out, tier=args.tier)
+    log.info("Outline complete: %s", oln)
+
+
 def cmd_synthesize(args):
     from pipeline import synthesize
 
-    out = os.path.dirname(os.path.abspath(args.structure))
-    syn = synthesize.run(args.structure, args.insights, out, tier=args.tier)
+    out = os.path.dirname(os.path.abspath(args.insights))
+    syn = synthesize.run(args.insights, args.outline, out, tier=args.tier)
     log.info("Synthesize complete: %s", syn)
 
 
 def cmd_review(args):
-    """文章审阅与对比 (Stage 5)"""
+    """文章审阅与对比 (Stage 6)"""
     from pipeline.review import run as review_run
 
     out = os.path.dirname(os.path.abspath(args.articles[0]))

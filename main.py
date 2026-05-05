@@ -35,6 +35,7 @@ from commands import (  # noqa: E402
     cmd_download,
     cmd_info,
     cmd_insights,
+    cmd_outline,
     cmd_preprocess,
     cmd_review,
     cmd_stt,
@@ -81,9 +82,14 @@ def main():
     pp.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     pp.set_defaults(func=cmd_insights)
 
-    pp = debug_sub.add_parser("synthesize", help="合成撰写")
-    pp.add_argument("structure", help="02_structure.json 路径")
+    pp = debug_sub.add_parser("outline", help="大纲生成")
     pp.add_argument("insights", help="03_insights.json 路径")
+    pp.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
+    pp.set_defaults(func=cmd_outline)
+
+    pp = debug_sub.add_parser("synthesize", help="合成撰写")
+    pp.add_argument("insights", help="03_insights.json 路径")
+    pp.add_argument("outline", help="04_outline.json 路径")
     pp.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     pp.set_defaults(func=cmd_synthesize)
 

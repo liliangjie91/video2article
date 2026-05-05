@@ -1,4 +1,4 @@
-"""Stage 5: 文章审阅与对比 — 主编审稿 → 资深作者定稿 / 交互式逐段审阅"""
+"""Stage 6: 文章审阅与对比 — 主编审稿 → 资深作者定稿 / 交互式逐段审阅"""
 
 import json
 import os
@@ -74,9 +74,9 @@ def run(article_paths: list[str], output_dir: str, tier: str = "best") -> str:
             + "\n\n请逐篇分析优缺点，并做横向对比。"
         )
 
-    comments = chat(editor_input, tier=tier, system=EDITOR_PROMPT, step=5)
+    comments = chat(editor_input, tier=tier, system=EDITOR_PROMPT, step=6)
 
-    comments_path = os.path.join(output_dir, "05_review_comments.md")
+    comments_path = os.path.join(output_dir, "06_review_comments.md")
     with open(comments_path, "w", encoding="utf-8") as f:
         f.write(comments)
     logger.info("Review comments: %s", comments_path)
@@ -98,9 +98,9 @@ def run(article_paths: list[str], output_dir: str, tier: str = "best") -> str:
             f"请综合各篇文章的优点，输出一篇更优秀的文章。"
         )
 
-    final = chat(writer_input, tier=tier, system=WRITER_PROMPT, step=5)
+    final = chat(writer_input, tier=tier, system=WRITER_PROMPT, step=6)
 
-    final_path = os.path.join(output_dir, "05_review_final.md")
+    final_path = os.path.join(output_dir, "06_review_final.md")
     with open(final_path, "w", encoding="utf-8") as f:
         f.write(final)
     logger.info("Review final: %s", final_path)
@@ -369,7 +369,7 @@ def interactive_run(article_path: str, output_dir: str, tier: str = "best", dry_
 
     # All done
     _save_interactive_output(output_dir, ts, article, output_segments, review_record)
-    final_path = os.path.join(output_dir, "05_interactive_article.md")
+    final_path = os.path.join(output_dir, "06_interactive_article.md")
     logger.info("Interactive review complete: %s", final_path)
     return final_path
 
@@ -383,11 +383,11 @@ def _save_interactive_output(output_dir: str, ts: str, article: dict, output_seg
         lines.extend(["", f"## {seg['heading']}", "", seg["body"]])
     article_text = "\n".join(lines)
 
-    article_path = os.path.join(output_dir, "05_interactive_article.md")
+    article_path = os.path.join(output_dir, "06_interactive_article.md")
     with open(article_path, "w", encoding="utf-8") as f:
         f.write(article_text)
 
-    record_path = os.path.join(output_dir, "05_interactive_review.json")
+    record_path = os.path.join(output_dir, "06_interactive_review.json")
     with open(record_path, "w", encoding="utf-8") as f:
         json.dump(review_record, f, indent=2, ensure_ascii=False)
 
