@@ -131,7 +131,25 @@ def run(structure_path: str, output_dir: str, tier: str = "best") -> str:
 
         insights.append(insight)
 
-    output = {"segments": insights}
+    # Merge each insight back into its structure segment
+    merged_segments = []
+    for seg in segments:
+        seg_id = seg.get("id")
+        matched = next((ins for ins in insights if ins.get("segment_id") == seg_id), {})
+        merged = dict(seg)  # copy structure fields
+        merged["insight"] = {
+            "core_summary": matched.get("core_summary", ""),
+            "implicit_assumptions": matched.get("implicit_assumptions", ""),
+            "background": matched.get("background", ""),
+            "connections": matched.get("connections", ""),
+            "critical_questions": matched.get("critical_questions", ""),
+        }
+        merged_segments.append(merged)
+
+    output = {
+        "overall_thesis": structure.get("overall_thesis", ""),
+        "segments": merged_segments,
+    }
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
 

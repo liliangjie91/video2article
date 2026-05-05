@@ -45,26 +45,38 @@ def structure_file(tmp_path):
 
 
 class TestRun:
-    def test_creates_json_output(self, tmp_path, structure_file, mocker):
+    def test_merges_structure_into_insights(self, tmp_path, structure_file, mocker):
         mocker.patch("pipeline.insights.chat", return_value=VALID_INSIGHT)
         out = insights.run(str(structure_file), str(tmp_path), tier="best")
         assert out == str(tmp_path / "03_insights.json")
         data = json.loads((tmp_path / "03_insights.json").read_text(encoding="utf-8"))
+        assert data["overall_thesis"] == "Test thesis"
         assert "segments" in data
-        assert data["segments"][0]["core_summary"] == "Summary here"
+        seg = data["segments"][0]
+        # Structure fields preserved at top level
+        assert seg["id"] == 1
+        assert seg["topic"] == "Intro"
+        assert seg["sentences"] == ["Sentence 1."]
+        # Insight nested under 'insight' key
+        assert seg["insight"]["core_summary"] == "Summary here"
+        assert seg["insight"]["implicit_assumptions"] == "Assumption here"
+        assert seg["insight"]["background"] == "Background here"
 
     def test_calls_llm_per_segment(self, tmp_path, structure_file, mocker):
         mock_chat = mocker.patch("pipeline.insights.chat", return_value=VALID_INSIGHT)
         insights.run(str(structure_file), str(tmp_path), tier="best")
         assert mock_chat.call_count == 2
 
-    def test_collects_all_segments(self, tmp_path, structure_file, mocker):
+    def test_all_segments_have_insight(self, tmp_path, structure_file, mocker):
         seg1 = json.dumps({"segment_id": 1, "topic": "Intro", "core_summary": "S1", "implicit_assumptions": "", "background": "", "connections": "", "critical_questions": ""})
         seg2 = json.dumps({"segment_id": 2, "topic": "Body", "core_summary": "S2", "implicit_assumptions": "", "background": "", "connections": "", "critical_questions": ""})
         mocker.patch("pipeline.insights.chat", side_effect=[seg1, seg2])
         insights.run(str(structure_file), str(tmp_path), tier="best")
         data = json.loads((tmp_path / "03_insights.json").read_text(encoding="utf-8"))
         assert len(data["segments"]) == 2
+        for seg in data["segments"]:
+            assert "insight" in seg
+            assert seg["insight"]["core_summary"] != ""
 
     def test_skip_if_output_exists(self, tmp_path, structure_file, mocker):
         mock_chat = mocker.patch("pipeline.insights.chat")
@@ -88,6 +100,6 @@ class TestRun:
 
     def test_strips_markdown_fence(self, tmp_path, structure_file, mocker):
         mocker.patch("pipeline.insights.chat", return_value=f"```json\n{VALID_INSIGHT}\n```")
-        out = insights.run(str(structure_file), str(tmp_path), tier="best")
+        insights.run(str(structure_file), str(tmp_path), tier="best")
         data = json.loads((tmp_path / "03_insights.json").read_text(encoding="utf-8"))
-        assert data["segments"][0]["core_summary"] == "Summary here"
+        assert data["segments"][0]["insight"]["core_summary"] == "Summary here"
