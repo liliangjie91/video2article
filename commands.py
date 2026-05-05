@@ -178,6 +178,12 @@ def cmd_review(args):
         log.info("[dry-run] Would review %d article(s) \u2192 %s", len(args.articles), out)
         return
 
+    if args.interactive:
+        from pipeline.review import interactive_run
+
+        interactive_run(args.articles[0], out, tier=args.tier, dry_run=args.dry_run)
+        return
+
     r = review_run(args.articles, out, tier=args.tier)
     log.info("Review complete: %s", r)
 

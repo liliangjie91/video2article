@@ -8,7 +8,7 @@ class TestRunArticlePipeline:
     def test_full_pipeline(self, tmp_path, mocker):
         mocker.patch("pipeline.preprocess.run", return_value=str(tmp_path / "01_preprocessed.txt"))
         mocker.patch("pipeline.structure.run", return_value=str(tmp_path / "02_structure.json"))
-        mocker.patch("pipeline.insights.run", return_value=str(tmp_path / "03_insights.md"))
+        mocker.patch("pipeline.insights.run", return_value=str(tmp_path / "03_insights.json"))
         mock_syn = mocker.patch("pipeline.synthesize.run", return_value=str(tmp_path / "04_article.md"))
 
         srt = tmp_path / "test.srt"

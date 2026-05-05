@@ -18,7 +18,19 @@ SAMPLE_STRUCTURE = {
     ],
 }
 
-SAMPLE_INSIGHTS = "## Paragraph 1: Intro\nSome deep analysis here."
+SAMPLE_INSIGHTS = {
+    "segments": [
+        {
+            "segment_id": 1,
+            "topic": "Intro",
+            "core_summary": "Some deep analysis here.",
+            "implicit_assumptions": "Assumption text",
+            "background": "Background text",
+            "connections": "Connection text",
+            "critical_questions": "Question text",
+        }
+    ]
+}
 
 
 @pytest.fixture
@@ -30,8 +42,8 @@ def structure_file(tmp_path):
 
 @pytest.fixture
 def insights_file(tmp_path):
-    p = tmp_path / "03_insights.md"
-    p.write_text(SAMPLE_INSIGHTS, encoding="utf-8")
+    p = tmp_path / "03_insights.json"
+    p.write_text(json.dumps(SAMPLE_INSIGHTS, indent=2), encoding="utf-8")
     return p
 
 

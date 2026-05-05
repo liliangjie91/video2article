@@ -69,7 +69,7 @@ CUSTOM_API_PROTOCOL=openai
   ▼
 [Stage 1 预处理]           → 01_preprocessed.txt  清洗口语噪声
 [Stage 2 结构识别]         → 02_structure.json     语义分段 + 论证骨架
-[Stage 3 深度挖掘]    ◀──  → 03_insights.md        挖掘隐含假设/背景/关联
+[Stage 3 深度挖掘]    ◀──  → 03_insights.json      挖掘隐含假设/背景/关联（JSON）
 [Stage 4 合成撰写]         → 04_article.md          成文
   │
   ▼ (可选)
@@ -108,7 +108,7 @@ python main.py batch url1 --from-channel @channel       # 混合来源
 python main.py debug preprocess <subtitle.srt>
 python main.py debug structure  <01_preprocessed.txt>
 python main.py debug insights   <02_structure.json>
-python main.py debug synthesize <02_structure.json> <03_insights.md>
+python main.py debug synthesize <02_structure.json> <03_insights.json>
 
 # 周边
 python main.py stt      <video/audio file>          # 语音转文字
@@ -128,7 +128,7 @@ output/<channel_title>/<uploaddate>_<videoid>/
 ├── videoid.srt                   # YouTube API 直取的字幕 / STT提取的字幕
 ├── 01_preprocessed.txt           # Stage 1: 清洗后文本
 ├── 02_structure.json             # Stage 2: 论证骨架
-├── 03_insights.md                # Stage 3: 深度挖掘笔记
+├── 03_insights.json                # Stage 3: 深度挖掘笔记（JSON）
 ├── 04_article.md                 # Stage 4: 最终文章
 ├── 05_illustrated.md             # 图文合成（可选）
 ├── screenshots/                  # 视频关键帧

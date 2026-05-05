@@ -99,17 +99,17 @@ def run(structure_path: str, insights_path: str, output_dir: str, tier: str = "b
     with open(structure_path, "r", encoding="utf-8") as f:
         structure_data = json.load(f)
     with open(insights_path, "r", encoding="utf-8") as f:
-        insights = f.read()
+        insights = json.load(f)
+    insights_raw = json.dumps(insights, indent=2, ensure_ascii=False)
 
-    # preprocessed = _extract_sentences(structure_data)
     structure_raw = json.dumps(structure_data, indent=2, ensure_ascii=False)
 
     prompt_parts = [
         "## 结构分析，内含原文：sentences",
         structure_raw,
         "",
-        "## 深度挖掘笔记",
-        insights,
+        "## 深度挖掘笔记（JSON）",
+        insights_raw,
         "",
         "请基于以上所有材料，撰写一篇完整的文章。",
     ]

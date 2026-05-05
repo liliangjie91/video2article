@@ -42,7 +42,7 @@ subtitle.srt / video.mp4 / YouTube URL
         ▼
    [Stage 1: 预处理]         ← pipeline/preprocess.py   → 01_preprocessed.txt
    [Stage 2: 结构识别]       ← pipeline/structure.py    → 02_structure.json
-   [Stage 3: 深度挖掘] ←核心 ← pipeline/insights.py     → 03_insights.md
+   [Stage 3: 深度挖掘] ←核心 ← pipeline/insights.py     → 03_insights.json
    [Stage 4: 合成撰写]       ← pipeline/synthesize.py   → 04_article.md
         │
         ▼
@@ -84,7 +84,7 @@ python main.py article --simple <input>                                    # 使
 python main.py debug preprocess <subtitle.srt>
 python main.py debug structure <01_preprocessed.txt>
 python main.py debug insights <01_preprocessed.txt> <02_structure.json>
-python main.py debug synthesize <01_preprocessed.txt> <02_structure.json> <03_insights.md>
+python main.py debug synthesize <01_preprocessed.txt> <02_structure.json> <03_insights.json>
 
 # 周边
 python main.py stt <video.mp4>
@@ -117,7 +117,7 @@ output/<channel_title>/<uploaddate>_<videoid>/
 ├── videoid.srt                   # YouTube API 直取字幕（0 下载）
 ├── 01_preprocessed.txt           # Stage 1
 ├── 02_structure.json             # Stage 2
-├── 03_insights.md                # Stage 3
+├── 03_insights.json                # Stage 3 深度挖掘（JSON）
 ├── 04_article.md                 # Stage 4
 ├── 05_illustrated.md             # 图文合成（可选）
 ├── screenshots/

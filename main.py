@@ -83,7 +83,7 @@ def main():
 
     pp = debug_sub.add_parser("synthesize", help="合成撰写")
     pp.add_argument("structure", help="02_structure.json 路径")
-    pp.add_argument("insights", help="03_insights.md 路径")
+    pp.add_argument("insights", help="03_insights.json 路径")
     pp.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     pp.set_defaults(func=cmd_synthesize)
 
@@ -92,6 +92,7 @@ def main():
     p.add_argument("articles", nargs="+", help="一个或多个文章 .md 路径")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
     p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
+    p.add_argument("--interactive", "-i", action="store_true", help="交互式逐段审阅模式")
     p.set_defaults(func=cmd_review)
 
     # stt
