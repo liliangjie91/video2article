@@ -138,3 +138,12 @@ output/<channel_title>/<uploaddate>_<videoid>/
 ## 命名
 
 项目 logger name 统一使用 `video2article`。
+
+## 测试
+
+测试文件在 `tests/` 目录，128 个测试：
+
+- **第一梯队**（纯函数，无需 mock）：`test_parser.py`、`test_utils.py`、`test_download_cache.py`、`test_config.py`
+- **第二梯队**（mock LLM）：`test_preprocess.py`、`test_structure.py`、`test_insights.py`、`test_synthesize.py`、`test_simple.py`、`test_commands.py`
+
+运行：`pytest -v`。CI 通过 `.github/workflows/test.yml` 自动执行。
