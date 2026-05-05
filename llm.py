@@ -73,8 +73,11 @@ def _do_chat(prompt: str, cfg: dict, system: str, step: int) -> str:
 def _log_conversation(step: int, call_id: int, kind: str, content: str):
     if not _log_dir:
         return
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"step{step}_{call_id:03d}_{kind}_{timestamp}.txt"
-    filepath = os.path.join(_log_dir, filename)
-    with open(filepath, "w", encoding="utf-8") as f:
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_path = os.path.join(_log_dir, f"step{step}.log")
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(f"=== {timestamp} #{call_id:03d} {kind.upper()} ===\n")
         f.write(content)
+        if not content.endswith("\n"):
+            f.write("\n")
+        f.write("\n")
