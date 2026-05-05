@@ -65,7 +65,18 @@ def _generate_tldr(article_text: str, tier: str) -> str:
         f"{article_text}"
     )
     tl_dr = chat(prompt, tier=tier, system="你是一位精炼的摘要写手。", step=5)
-    return tl_dr.strip()[:200]
+    tl_dr = tl_dr.strip()
+    was_truncated = len(tl_dr) > 200
+    tl_dr = tl_dr[:200]
+    # Truncate at last sentence boundary to avoid mid-sentence cut
+    for sep in ("。", "！", "？"):
+        idx = tl_dr.rfind(sep)
+        if idx > 20:  # at least 20 chars to keep meaningful content
+            tl_dr = tl_dr[: idx + 1]
+            break
+    if was_truncated:
+        tl_dr += "……"
+    return tl_dr
 
 
 def run(insights_path: str, outline_path: str, output_dir: str, tier: str = "best") -> str:

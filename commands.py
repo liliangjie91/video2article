@@ -274,3 +274,16 @@ def cmd_batch(args):
         inputs = inputs[:limit]
 
     process_batch(inputs, args.output_dir, args.tier, args.simple)
+
+
+def cmd_deliver(args):
+    """投送文章到指定渠道"""
+    from delivery import CHANNELS, deliver_article
+
+    channels = args.channel or (CHANNELS if args.all else None)
+    results = deliver_article(args.article, channels, as_text=args.as_text)
+    for channel, success in results.items():
+        if success:
+            log.info("Delivered to %s \u2713", channel)
+        else:
+            log.error("Failed to deliver to %s \u2717", channel)

@@ -56,6 +56,11 @@ CUSTOM_API_KEY=...
 CUSTOM_BASE_URL=https://.../v1
 CUSTOM_MODELS=...
 CUSTOM_API_PROTOCOL=openai
+
+# 文章投送
+TELEGRAM_BOT_TOKEN=...    # Telegram Bot Token (@BotFather 获取)
+TELEGRAM_CHAT_ID=...      # Telegram 频道/群组 ID
+DISCORD_WEBHOOK_URL=...   # Discord Webhook URL
 ```
 
 ## 管线流程
@@ -70,10 +75,11 @@ CUSTOM_API_PROTOCOL=openai
 [Stage 1 预处理]           → 01_preprocessed.txt  清洗口语噪声
 [Stage 2 结构识别]         → 02_structure.json     语义分段 + 论证骨架
 [Stage 3 深度挖掘]    ◀──  → 03_insights.json      挖掘隐含假设/背景/关联（JSON）
-[Stage 4 合成撰写]         → 04_article.md          成文
+[Stage 4 大纲生成]         → 04_outline.json        写作大纲
+[Stage 5 逐段合成]         → 05_article.md          按大纲逐段合成为文章
   │
   ▼ (可选)
-[视频截图 + 图文合成]      → 05_illustrated.md
+[视频截图 + 图文合成]      → 06_illustrated.md
 [文章 → 语音]             → TTS
 ```
 
@@ -89,7 +95,7 @@ CUSTOM_API_PROTOCOL=openai
 - **延伸关联** — 和其他事件/理论的联系
 - **批判追问** — 换个视角能看到什么
 
-结果不是编辑成文，而是做笔记——方便你审阅、修改、补充，满意了再进 Stage 4 合成。
+结果不是编辑成文，而是做笔记——方便你审阅、修改、补充，满意了再进 Stage 4 大纲 + Stage 5 合成。
 
 ## 常用命令
 
@@ -108,14 +114,22 @@ python main.py batch url1 --from-channel @channel       # 混合来源
 python main.py debug preprocess <subtitle.srt>
 python main.py debug structure  <01_preprocessed.txt>
 python main.py debug insights   <02_structure.json>
-python main.py debug synthesize <02_structure.json> <03_insights.json>
+python main.py debug outline    <03_insights.json>
+python main.py debug synthesize <03_insights.json> <04_outline.json>
 
 # 周边
 python main.py stt      <video/audio file>          # 语音转文字
-python main.py review   <article.md>               # 审阅
+python main.py review   <article.md>                          # 审阅（单篇）
+python main.py review   <article.md> --interactive            # 交互式逐段审阅
 python main.py info     <URL/VideoID>          # 获取视频信息：可用字幕，标题，频道名等
 python main.py download <URL/VideoID>          # URL → SRT（默认）；支持参数 --media video/audio 下载视频/音频文件
 python main.py uploads  <@channel>                 # 频道最新视频列表
+
+# 文章投送
+python main.py deliver <article.md>                        # 默认投送到 Telegram
+python main.py deliver <article.md> --channel discord      # 指定渠道
+python main.py deliver <article.md> --all                  # 投送到所有可用渠道
+python main.py deliver <article.md> --as-text              # 文本形式（默认发送 .md 文件）
 ```
 
 ## 输出目录

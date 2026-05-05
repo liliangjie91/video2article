@@ -57,6 +57,7 @@ subtitle.srt / video.mp4 / YouTube URL
 
 - **`main.py`** — 薄 CLI 入口，仅 logging + argparse 定义，命令分发到 `commands.py`。
 - **`commands.py`** — 所有命令处理函数 (`cmd_*`) + 核心流程 (`process_one`, `process_batch`)。
+- **`delivery/`** — 文章投送模块。`deliver_article(article_path, channels)` 统一调度，各渠道 (`telegram.py`, `discord.py`) 实现 `deliver(title, body, file_path) -> bool` 接口。
 - **`utils/__init__.py`** — 通用工具函数：`project_dir()`（输出路径确定）、`detect_input_type()`（输入格式检测）、字幕/音视频扩展名判断。
 - **`utils/parser.py`** — 字幕解析统一接口，支持 SRT、VTT、Simple (`[HH:MM:SS] text`) 三种格式，输出统一的 `list[tuple[int, int, str]]`（start_ms, end_ms, text）。
 - **`llm.py`** — 核心 LLM 封装。`chat()` 透传 config 给 litellm，主模型失败时自动 fallback。
@@ -91,6 +92,7 @@ python main.py debug synthesize <03_insights.json> <04_outline.json>  # Stage 5 
 # 周边
 python main.py stt <video.mp4>
 python main.py review <article.md>                    # 文章审阅 (单篇)
+python main.py review <article.md> --interactive      # 交互式逐段审阅
 python main.py review <article1.md> <article2.md>     # 文章对比 (多篇)
 
 # URL 命令
@@ -106,6 +108,12 @@ python main.py batch --from-channel @channel                # 从频道拉取视
 python main.py batch --from-channel @channel --limit 5      # 限制总处理数量
 python main.py batch url1 --from-channel @channel           # 混合来源
 ```
+
+# 投送
+python main.py deliver <article.md>                         # Telegram 投送（默认）
+python main.py deliver <article.md> --channel discord       # 指定渠道
+python main.py deliver <article.md> --all                   # 所有可用渠道
+python main.py deliver <article.md> --as-text               # 文本形式（默认发送 .md 文件）
 
 `article`、`download`、`review` 命令支持 `--dry-run` 参数进行空跑验证。
 

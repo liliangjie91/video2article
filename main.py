@@ -32,6 +32,7 @@ logging.basicConfig(
 from commands import (  # noqa: E402
     cmd_article,
     cmd_batch,
+    cmd_deliver,
     cmd_download,
     cmd_info,
     cmd_insights,
@@ -134,6 +135,17 @@ def main():
     p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     p.add_argument("--simple", action="store_true", help="使用快速产出模式")
     p.set_defaults(func=cmd_batch)
+
+    # deliver
+    p = sub.add_parser("deliver", help="投送文章到 Telegram 等渠道")
+    p.add_argument("article", help="文章 .md 文件路径")
+    p.add_argument("--channel", "-c", action="append", default=None,
+                   help="投送渠道（可多次指定，默认 telegram）")
+    p.add_argument("--all", action="store_true",
+                   help="投送到所有可用渠道")
+    p.add_argument("--as-text", action="store_true",
+                   help="以文本形式投送（默认发送 .md 文件）")
+    p.set_defaults(func=cmd_deliver)
 
     args = parser.parse_args()
     args.func(args)
