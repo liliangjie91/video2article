@@ -76,7 +76,7 @@ class TestRun:
     def test_passes_outline_context_in_prompt(self, tmp_path, insights_file, outline_file, mocker):
         mock_chat = mocker.patch("pipeline.synthesize.chat", return_value="# Article")
         synthesize.run(str(insights_file), str(outline_file), str(tmp_path), tier="best")
-        prompt = mock_chat.call_args[0][0]
+        prompt = mock_chat.call_args_list[0][0][0]
         assert "Test thesis" in prompt
         assert "引言" in prompt
         assert "Hello world" in prompt
