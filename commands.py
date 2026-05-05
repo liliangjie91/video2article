@@ -79,7 +79,7 @@ def process_batch(
     tier: str = "best",
     simple: bool = False,
 ) -> None:
-    """批量处理多个输入的核心循环，供 cmd_batch 和 uploads --process 共用。"""
+    """批量处理多个输入的核心循环"""
     if not inputs:
         log.error("No inputs to process")
         return
