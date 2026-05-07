@@ -28,6 +28,7 @@ main.py (CLI入口) → commands.py (命令处理 + 流程编排)
                         │
                         ├── download/    (字幕下载/音视频获取)
                         ├── pipeline/    (五阶段：preprocess → structure → insights → outline → synthesize)
+                        ├── search/      (联网搜索：Tavily、Brave、DuckDuckGo)
                         ├── delivery/    (文章投送：Telegram、Discord)
                         ├── image/       (视频截图+图文合成)
                         ├── stt/         (语音转文字)

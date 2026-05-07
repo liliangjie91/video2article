@@ -15,6 +15,7 @@ subtitle.srt / video.mp4 / YouTube URL
    [Stage 1: 预处理]         ← pipeline/preprocess.py   → 01_preprocessed.txt
    [Stage 2: 结构识别]       ← pipeline/structure.py    → 02_structure.json
    [Stage 3: 深度挖掘] ←核心 ← pipeline/insights.py     → 03_insights.json
+        │                       └── search/ (可选联网搜索)
    [Stage 4: 大纲生成]       ← pipeline/outline.py      → 04_outline.json
    [Stage 5: 逐段合成]       ← pipeline/synthesize.py   → 05_article.md
         │
@@ -48,6 +49,7 @@ subtitle.srt / video.mp4 / YouTube URL
 | `pipeline/` | 五阶段文章管线 |
 | `delivery/` | 文章投送：Telegram、Discord |
 | `image/` | 视频截图 + 图文合成 |
+| `search/` | 联网搜索（Tavily / Brave / DuckDuckGo），Stage 3 可选集成 |
 | `stt/` | 语音转文字 |
 | `tts/` | 文章转语音 |
 
