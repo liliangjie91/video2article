@@ -62,6 +62,7 @@ def main():
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
     p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     p.add_argument("--simple", action="store_true", help="使用一步到位的快速产出而非分步执行")
+    p.add_argument("--deliver", action="store_true", help="文章生成后自动投送到默认渠道")
     p.set_defaults(func=cmd_article)
 
     # debug (single-stage subcommands)

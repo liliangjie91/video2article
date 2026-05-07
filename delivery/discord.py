@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 _MAX_MSG = 2000
 
 
-def deliver(title: str, body: str, file_path: str | None = None) -> bool:
+def deliver(title: str, body: str, file_path: str | None = None,
+            display_filename: str | None = None) -> bool:
     """Send article to configured Discord channel via webhook.
 
     When *file_path* is provided, sends the file as an attachment with
@@ -28,13 +29,15 @@ def deliver(title: str, body: str, file_path: str | None = None) -> bool:
         return False
 
     if file_path:
-        return _send_document(webhook_url, file_path, title=title)
+        return _send_document(webhook_url, file_path, title=title,
+                              display_filename=display_filename)
 
     text = f"{title}\n\n{body}" if title else body
     return _send_chunks(webhook_url, text)
 
 
-def _send_document(webhook_url: str, file_path: str, title: str = "") -> bool:
+def _send_document(webhook_url: str, file_path: str, title: str = "",
+                   display_filename: str | None = None) -> bool:
     """Send title as message content with ``.md`` file as attachment.
 
     Discord webhooks support content + file in a single multipart request.
@@ -48,7 +51,7 @@ def _send_document(webhook_url: str, file_path: str, title: str = "") -> bool:
             resp = requests.post(
                 webhook_url,
                 data=payload,
-                files={"file": (os.path.basename(file_path), f, "text/markdown")},
+                files={"file": (display_filename or os.path.basename(file_path), f, "text/markdown")},
                 timeout=60,
             )
         resp.raise_for_status()

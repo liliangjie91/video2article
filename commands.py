@@ -134,7 +134,17 @@ def _resolve_subtitle(url: str, output_dir: str | None) -> str:
 
 def cmd_article(args):
     """字幕/音视频/URL → 文章（自动检测输入类型）"""
-    process_one(args.input, args.output_dir, args.tier, args.dry_run, args.simple)
+    article_path = process_one(args.input, args.output_dir, args.tier, args.dry_run, args.simple)
+    if args.deliver and article_path:
+        from delivery.deliver import deliver_article
+
+        log.info("Delivering article...")
+        results = deliver_article(article_path)
+        for channel, ok in results.items():
+            if ok:
+                log.info("  Delivered to %s ✓", channel)
+            else:
+                log.error("  Failed to deliver to %s ✗", channel)
 
 
 def cmd_preprocess(args):

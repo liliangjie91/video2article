@@ -2,6 +2,7 @@
 
 import importlib
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +19,18 @@ def deliver_article(
 ) -> dict[str, bool]:
     """Deliver *article_path* through each channel in *channels*.
 
-    If *channels* is ``None``, defaults to ``["telegram"]``.
+    Channel resolution priority (highest first):
+      1. *channels* argument (from CLI ``--channel`` / ``--all``)
+      2. ``config.ini`` section ``[delivery]``, key ``default_channels``
+      3. Hard-coded fallback ``["telegram"]``
+
     By default sends the ``.md`` file as a document with a title message.
     Pass ``as_text=True`` to send the article body as formatted text instead.
 
     Returns ``{channel_name: success}``.
     """
     if channels is None:
-        channels = ["telegram"]
+        channels = _default_channels()
 
     with open(article_path, "r", encoding="utf-8") as f:
         text = f.read()
@@ -33,6 +38,7 @@ def deliver_article(
     title, body = _parse_article(text)
 
     results: dict[str, bool] = {}
+    display_filename = f"{_sanitize_filename(title)}.md" if title else None
     for ch in channels:
         mod_path = _CHANNEL_MODULES.get(ch)
         if mod_path is None:
@@ -43,6 +49,8 @@ def deliver_article(
         mod = importlib.import_module(mod_path)
         try:
             kwargs = {"file_path": article_path} if not as_text else {}
+            if display_filename:
+                kwargs["display_filename"] = display_filename
             ok = mod.deliver(title, body, **kwargs)
         except Exception as e:
             logger.error("Delivery to %s failed: %s", ch, e)
@@ -64,3 +72,25 @@ def _parse_article(text: str) -> tuple[str, str]:
             body_lines.append(line)
     body = "\n".join(body_lines).strip()
     return title, body
+
+
+def _sanitize_filename(title: str) -> str:
+    """Strip special characters from *title* for safe use as a filename."""
+    name = re.sub(r'[\\/:*?"<>|]', "", title)  # remove OS-forbidden chars
+    name = name.replace('"', "").replace("'", "")  # remove English quotes
+    name = re.sub(r"\s+", "", name)  # remove all whitespace
+    name = name.strip(". ")
+    return name[:50] or "article"
+
+
+def _default_channels() -> list[str]:
+    """Read default channels from config.ini, fall back to ``["telegram"]``."""
+    try:
+        from config import get_config
+
+        cfg = get_config()
+        raw = cfg.get("delivery", "default_channels", fallback="telegram")
+        channels = [ch.strip() for ch in raw.split(",") if ch.strip()]
+        return channels or ["telegram"]
+    except Exception:
+        return ["telegram"]

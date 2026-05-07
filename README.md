@@ -13,6 +13,10 @@ brew install ffmpeg           # macOS，截图提取需要
 
 配置 `config.ini`（模型档位）和 `.env`（API 密钥），详见 [docs/config.md](docs/config.md)。
 
+```bash
+cp .env.example .env     # 复制环境变量模板，按需编辑
+```
+
 ## 常用命令
 
 ```bash

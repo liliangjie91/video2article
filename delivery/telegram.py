@@ -13,7 +13,8 @@ _API_BASE = "https://api.telegram.org/bot{token}"
 _MAX_MSG = 4096
 
 
-def deliver(title: str, body: str, file_path: str | None = None) -> bool:
+def deliver(title: str, body: str, file_path: str | None = None,
+            display_filename: str | None = None) -> bool:
     """Send article to configured Telegram chat.
 
     When *file_path* is provided, sends the file as a document via
@@ -32,13 +33,15 @@ def deliver(title: str, body: str, file_path: str | None = None) -> bool:
         return False
 
     if file_path:
-        return _send_document(token, chat_id, file_path, title=title)
+        return _send_document(token, chat_id, file_path, title=title,
+                              display_filename=display_filename)
 
     text = f"{title}\n\n{body}" if title else body
     return _send_chunks(token, chat_id, text)
 
 
-def _send_document(token: str, chat_id: str, file_path: str, title: str = "") -> bool:
+def _send_document(token: str, chat_id: str, file_path: str, title: str = "",
+                   display_filename: str | None = None) -> bool:
     """Send title as text message, then upload ``.md`` file as document."""
     msg_url = f"{_API_BASE.format(token=token)}/sendMessage"
 
@@ -58,7 +61,7 @@ def _send_document(token: str, chat_id: str, file_path: str, title: str = "") ->
             resp = requests.post(
                 doc_url,
                 data={"chat_id": chat_id},
-                files={"document": (os.path.basename(file_path), f, "text/markdown")},
+                files={"document": (display_filename or os.path.basename(file_path), f, "text/markdown")},
                 timeout=60,
             )
         resp.raise_for_status()

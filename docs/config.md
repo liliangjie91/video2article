@@ -2,23 +2,23 @@
 
 ## .env — API 密钥与敏感配置
 
+复制 `.env.example` 为 `.env`，按需填入密钥：
+
 ```bash
-# LLM
-DEEPSEEK_API_KEY=sk-...
-
-# 自定义 provider（通过环境变量自动发现）
-CUSTOM_API_KEY=...
-CUSTOM_BASE_URL=https://...
-CUSTOM_API_PROTOCOL=openai    # openai（默认）或 anthropic
-
-# YouTube Data API（频道上传列表功能，可选）
-YOUTUBE_API_KEY=...
-
-# 文章投送
-TELEGRAM_BOT_TOKEN=...        # Telegram Bot Token（@BotFather 获取）
-TELEGRAM_CHAT_ID=...          # Telegram 频道/群组 ID
-DISCORD_WEBHOOK_URL=...       # Discord Webhook URL
+cp .env.example .env
 ```
+
+`.env.example` 包含所有可用的环境变量及详细注释。各变量的作用说明：
+
+| 变量 | 用途 | 必需 |
+|------|------|------|
+| `DEEPSEEK_API_KEY` (或 `OPENAI_API_KEY` 等) | LLM 调用 | 是 |
+| `CUSTOM_API_KEY` + `CUSTOM_BASE_URL` | 自定义 LLM provider | 按需 |
+| `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Telegram 投送 | 按需 |
+| `DISCORD_WEBHOOK_URL` | Discord 投送 | 按需 |
+| `YOUTUBE_API_KEY` | 频道视频列表 (`uploads`) | 仅 uploads |
+
+**自定义 provider 约定**：`{PROVIDER}_API_KEY` + `{PROVIDER}_BASE_URL` + `{PROVIDER}_API_PROTOCOL`（`openai` 或 `anthropic`，默认 `openai`）。config.ini 中以 `custom/` 前缀引用。
 
 ## config.ini — 模型与功能配置
 
@@ -58,6 +58,17 @@ model = deepseek/deepseek-v4-pro
 [stt]
 model_dir = /path/to/whisper/models
 ```
+
+### Delivery 配置
+
+```ini
+[delivery]
+default_channels = telegram
+```
+
+`default_channels` 为逗号分隔的渠道列表，优先级低于 CLI `--channel` / `--all` 参数，高于 `deliver_article()` 函数内置的 `["telegram"]` 默认值。
+
+可用渠道：`telegram`、`discord`。
 
 ## 配置加载流程
 

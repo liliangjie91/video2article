@@ -29,13 +29,15 @@ python main.py debug synthesize   <03_insights.json> <04_outline.json>
 ## deliver — 文章投送
 
 ```bash
-python main.py deliver <article.md>                        # 默认 Telegram
+python main.py deliver <article.md>                        # 默认渠道（config.ini > telegram）
 python main.py deliver <article.md> --channel discord      # 指定渠道
 python main.py deliver <article.md> --all                  # 所有可用渠道
 python main.py deliver <article.md> --as-text              # 文本形式（默认发 .md 文件）
 ```
 
 渠道：`telegram`（Bot API）、`discord`（Webhook）。
+
+优先级：`--channel`/`--all` > `config.ini [delivery] default_channels` > 内置 `["telegram"]`。
 
 ## review — 文章审阅
 
