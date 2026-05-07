@@ -70,6 +70,25 @@ default_channels = telegram
 
 可用渠道：`telegram`、`discord`。
 
+### Search 配置
+
+```ini
+[search]
+engines = tavily,brave,ddg
+```
+
+`engines` 为逗号分隔的搜索引擎列表。搜索默认关闭，CLI 中加 `--search` 开启。
+
+各引擎按 round-robin 轮询分配查询，均匀消耗 API credit。可用引擎：
+
+| 引擎 | 环境变量 | 是否需要 API Key |
+|------|----------|-----------------|
+| `tavily` | `TAVILY_API_KEY` | 是 |
+| `brave` | `BRAVE_API_KEY` | 是 |
+| `ddg` | 无 | 否（始终可用） |
+
+配置了但缺少 API Key 的引擎会自动跳过。
+
 ## 配置加载流程
 
 1. `config.py` 读取 `config.ini`，返回 `(fast_conf, best_conf)` 两个配置字典

@@ -24,22 +24,27 @@ def set_log_dir(path: str):
     os.makedirs(path, exist_ok=True)
 
 
-def chat(prompt: str, tier: str = "fast", system: str = "You are a helpful assistant.", step: int = 0) -> str:
-    """Send a prompt and return the text response. Auto-fallback on failure."""
+def chat(prompt: str, tier: str = "fast", system: str = "You are a helpful assistant.",
+          step: int = 0, log_prompt: bool = True) -> str:
+    """Send a prompt and return the text response. Auto-fallback on failure.
+
+    Set *log_prompt* to ``False`` to suppress the request section in the LLM log file
+    (response is still logged).  Useful for internal sub-calls that would clutter the log.
+    """
     cfg = get_client_config(tier)
     try:
-        return _do_chat(prompt, cfg, system, step)
+        return _do_chat(prompt, cfg, system, step, log_prompt)
     except Exception as e:
         if fallback := cfg.get("fallback"):
             logger.warning(
                 "[LLM] %s failed (%s), falling back to %s", cfg["model"], e, fallback
             )
             fb_cfg = {"model": fallback, "provider": fallback.split("/", 1)[0] if "/" in fallback else "openai"}
-            return _do_chat(prompt, fb_cfg, system, step)
+            return _do_chat(prompt, fb_cfg, system, step, log_prompt)
         raise
 
 
-def _do_chat(prompt: str, cfg: dict, system: str, step: int) -> str:
+def _do_chat(prompt: str, cfg: dict, system: str, step: int, log_prompt: bool = True) -> str:
     global _current_step, _call_counters
     _current_step = step
     counter = _call_counters.get(step, 0) + 1
@@ -48,7 +53,8 @@ def _do_chat(prompt: str, cfg: dict, system: str, step: int) -> str:
     model = cfg["model"]
 
     logger.info("[LLM call step%d #%d] model=%s", step, call_id, model)
-    _log_conversation(step, call_id, "request", f"SYSTEM:\n{system}\n\nUSER:\n{prompt}")
+    if log_prompt:
+        _log_conversation(step, call_id, "request", f"SYSTEM:\n{system}\n\nUSER:\n{prompt}")
 
     kwargs = {
         "model": model,

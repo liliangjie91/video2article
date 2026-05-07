@@ -58,11 +58,12 @@ def main():
     # article (unified entry — auto-detects input type)
     p = sub.add_parser("article", help="字幕/音视频/URL/ID → 文章（自动检测类型）")
     p.add_argument("input", help="字幕文件(.srt/.vtt)、音视频文件(.mp4等) 或 YouTube URL/ID")
-    p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
+    p.add_argument("--output-dir", "-o", default=None, help="输出根目录,默认输出至output/")
     p.add_argument("--dry-run", action="store_true", help="只打印不执行")
     p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     p.add_argument("--simple", action="store_true", help="使用一步到位的快速产出而非分步执行")
     p.add_argument("--deliver", action="store_true", help="文章生成后自动投送到默认渠道")
+    p.add_argument("--search", action="store_true", help="开启联网搜索（默认关闭，消耗 API credit）")
     p.set_defaults(func=cmd_article)
 
     # debug (single-stage subcommands)
@@ -132,9 +133,10 @@ def main():
     p.add_argument("--file", "-f", help="包含输入列表的文本文件（每行一个输入）")
     p.add_argument("--from-channel", "-c", help="从 YouTube 频道拉取未处理的视频（handle/@/URL）")
     p.add_argument("--limit", "-l", type=int, default=20, help="总输入数量上限")
-    p.add_argument("--output-dir", "-o", default=None, help="输出根目录")
+    p.add_argument("--output-dir", "-o", default=None, help="输出根目录,默认输出至output/")
     p.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
     p.add_argument("--simple", action="store_true", help="使用快速产出模式")
+    p.add_argument("--search", action="store_true", help="开启联网搜索（默认关闭，消耗 API credit）")
     p.set_defaults(func=cmd_batch)
 
     # deliver

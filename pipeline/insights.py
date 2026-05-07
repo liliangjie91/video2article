@@ -6,6 +6,67 @@ import logging
 from llm import chat, set_log_dir
 from utils import safe_parse_json, extract_json
 
+# ── Search integration ──────────────────────────────────────────
+
+_SEARCH_QUERY_PROMPT = """
+基于以下视频段落内容，生成1-2个搜索查询，用于查找相关的背景信息和补充资料。
+
+## 要求
+- 每个查询用简短短语或短句（10-30字），像搜索引擎里会打的内容
+- 聚焦于段落中特有的概念、事件、人物或观点
+- 如果有多个查询，它们必须从**不同角度**出发，内容不能相似
+- 不要废话，不要完整长句
+
+## 输出格式
+每行一个查询，不要编号、不要前缀。
+
+段落内容：
+{text}"""
+
+
+def _search_for_segment(segment: dict, tier: str) -> dict:
+    """Generate search queries for *segment*, execute them.
+
+    Returns ``{"qr": [{"queries": "...", "results": [{"title":..., "url":..., "snippet":...}]}]}``.
+    """
+    from search import get_configured_engines, search as do_search
+
+    engines = get_configured_engines()
+    if not engines:
+        logger.info("No search engines configured, skipping search")
+        return {"qr": []}
+
+    text = "\n".join(segment.get("sentences", []))
+    raw = chat(
+        _SEARCH_QUERY_PROMPT.format(text=text),
+        tier=tier,
+        system="你是一位研究助手，负责生成精准的搜索查询。",
+        step=3,
+        log_prompt=False,
+    )
+    queries = [q.strip() for q in raw.strip().split("\n") if q.strip() and not q.startswith(("-", "•"))]
+    queries = queries[:3]
+    logger.info(
+        "Generated %d search queries for segment %d: %s",
+        len(queries), segment.get("id"), queries,
+    )
+
+    qr: list[dict] = []
+    for q in queries:
+        results = do_search(q, engines, num_results=5)
+        qr.append({
+            "queries": q,
+            "results": [
+                {"title": r.title, "url": r.url, "snippet": (r.snippet or "")[:1000]}
+                for r in results
+            ],
+        })
+
+    total = sum(len(item["results"]) for item in qr)
+    if total:
+        logger.info("Collected %d search results", total)
+    return {"qr": qr}
+
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """你是一位资深杂志主编，你的独特能力是从看似平常的叙述中挖掘深层价值。你的读者是受过良好教育、对相关领域有基础了解的群体，他们不满足于"复述"，而是希望读到原文之外的东西。
@@ -75,7 +136,7 @@ def _validate_insight(insight: dict) -> list[str]:
     return [f for f in required if f not in insight]
 
 
-def run(structure_path: str, output_dir: str, tier: str = "best") -> str:
+def run(structure_path: str, output_dir: str, tier: str = "best", search: bool = False) -> str:
     """Run Stage 3. Returns path to 03_insights.json."""
     output_path = os.path.join(output_dir, "03_insights.json")
     if os.path.exists(output_path):
@@ -89,7 +150,8 @@ def run(structure_path: str, output_dir: str, tier: str = "best") -> str:
 
     set_log_dir(os.path.join(output_dir, "llm_logs"))
     segments = structure.get("segments", [])
-    insights = []
+    insights: list[dict] = []
+    search_data_list: list[dict] = []
 
     for i, seg in enumerate(segments):
         logger.info("Analyzing segment %d/%d: %s", seg["id"], len(segments), seg.get("topic", ""))
@@ -99,9 +161,23 @@ def run(structure_path: str, output_dir: str, tier: str = "best") -> str:
             "",
             "当前需要分析的段落：",
             _build_segment_prompt(seg),
-            "",
-            "请从五个维度分析这段话，输出 JSON。",
         ]
+
+        # ── Search injection ──────────────────────────────────
+        search_data = _search_for_segment(seg, tier) if search else {"qr": []}
+        search_data_list.append(search_data)
+        all_results = [r for item in search_data["qr"] for r in item["results"]]
+        if all_results:
+            prompt_parts.append("")
+            prompt_parts.append("## 搜索结果（供参考）")
+            for j, r in enumerate(all_results, 1):
+                prompt_parts.append(f"{j}. {r['title']}")
+                prompt_parts.append(f"   来源：{r['url']}")
+                if r["snippet"]:
+                    prompt_parts.append(f"   摘要：{r['snippet'][:800]}")
+        # ───────────────────────────────────────────────────────
+
+        prompt_parts.extend(["", "请从五个维度分析这段话，输出 JSON。"])
         prompt = "\n".join(prompt_parts)
 
         raw = chat(prompt, tier=tier, system=SYSTEM_PROMPT, step=3)
@@ -124,7 +200,7 @@ def run(structure_path: str, output_dir: str, tier: str = "best") -> str:
 
     # Merge each insight back into its structure segment
     merged_segments = []
-    for seg in segments:
+    for idx, seg in enumerate(segments):
         seg_id = seg.get("id")
         matched = next((ins for ins in insights if ins.get("segment_id") == seg_id), {})
         merged = dict(seg)  # copy structure fields
@@ -135,6 +211,8 @@ def run(structure_path: str, output_dir: str, tier: str = "best") -> str:
             "connections": matched.get("connections", ""),
             "critical_questions": matched.get("critical_questions", ""),
         }
+        if idx < len(search_data_list):
+            merged["insight"]["web_search"] = search_data_list[idx]
         merged_segments.append(merged)
 
     output = {

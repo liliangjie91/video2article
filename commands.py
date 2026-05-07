@@ -13,7 +13,8 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def _run_article_pipeline(
-    subtitle_path: str, output_dir: str, tier: str, dry_run: bool, simple: bool = False
+    subtitle_path: str, output_dir: str, tier: str, dry_run: bool, simple: bool = False,
+    search_enabled: bool = False,
 ) -> str | None:
     """字幕 → 文章 pipeline。返回文章路径，dry_run 时返回 None。"""
     out = project_dir(subtitle_path, output_dir)
@@ -33,7 +34,7 @@ def _run_article_pipeline(
 
     pp = preprocess.run(subtitle_path, out, tier=tier)
     st = structure.run(pp, out, tier=tier)
-    ins = insights.run(st, out, tier=tier)
+    ins = insights.run(st, out, tier=tier, search=search_enabled)
     oln = outline.run(ins, out, tier=tier)
     syn = synthesize.run(ins, oln, out, tier=tier)
     log.info("Article complete: %s", syn)
@@ -49,6 +50,7 @@ def process_one(
     tier: str = "best",
     dry_run: bool = False,
     simple: bool = False,
+    search_enabled: bool = False,
 ) -> str | None:
     """Process a single input through the full pipeline.
 
@@ -64,14 +66,14 @@ def process_one(
     """
     input_type = detect_input_type(input_str)
     if input_type == "srt":
-        return _run_article_pipeline(input_str, output_dir, tier, dry_run, simple)
+        return _run_article_pipeline(input_str, output_dir, tier, dry_run, simple, search_enabled)
     if input_type == "media":
         from stt.transcribe import run as stt_run
 
         srt_path = stt_run(input_str)
-        return _run_article_pipeline(srt_path, output_dir, tier, dry_run, simple)
+        return _run_article_pipeline(srt_path, output_dir, tier, dry_run, simple, search_enabled)
     srt_path = _resolve_subtitle(input_str, output_dir)
-    return _run_article_pipeline(srt_path, output_dir, tier, dry_run, simple)
+    return _run_article_pipeline(srt_path, output_dir, tier, dry_run, simple, search_enabled)
 
 
 def process_batch(
@@ -79,6 +81,7 @@ def process_batch(
     output_dir: str | None = None,
     tier: str = "best",
     simple: bool = False,
+    search_enabled: bool = False,
 ) -> None:
     """批量处理多个输入的核心循环"""
     if not inputs:
@@ -89,7 +92,7 @@ def process_batch(
     for i, inp in enumerate(inputs, 1):
         log.info("[batch %d/%d] %s", i, len(inputs), inp)
         try:
-            article = process_one(inp, output_dir, tier, False, simple)
+            article = process_one(inp, output_dir, tier, False, simple, search_enabled)
             log.info("  \u2713 %s", article)
         except Exception as e:
             log.error("  \u2717 %s", e)
@@ -134,7 +137,8 @@ def _resolve_subtitle(url: str, output_dir: str | None) -> str:
 
 def cmd_article(args):
     """字幕/音视频/URL → 文章（自动检测输入类型）"""
-    article_path = process_one(args.input, args.output_dir, args.tier, args.dry_run, args.simple)
+    article_path = process_one(args.input, args.output_dir, args.tier, args.dry_run, args.simple,
+                               search_enabled=args.search)
     if args.deliver and article_path:
         from delivery.deliver import deliver_article
 
@@ -283,7 +287,7 @@ def cmd_batch(args):
     if limit and len(inputs) > limit:
         inputs = inputs[:limit]
 
-    process_batch(inputs, args.output_dir, args.tier, args.simple)
+    process_batch(inputs, args.output_dir, args.tier, args.simple, search_enabled=args.search)
 
 
 def cmd_deliver(args):
