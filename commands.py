@@ -191,6 +191,22 @@ def cmd_synthesize(args):
     log.info("Synthesize complete: %s", syn)
 
 
+def cmd_search(args):
+    """调试：单次搜索测试，查看原始结果"""
+    from search import get_configured_engines, search as do_search
+
+    engines = [args.engine] if args.engine else get_configured_engines()
+    log.info("Search query: %s | engines: %s | limit: %d", args.query, engines, args.limit)
+
+    results = do_search(args.query, engines, num_results=args.limit)
+    log.info("Got %d result(s):", len(results))
+    for i, r in enumerate(results, 1):
+        log.info("  %d. %s", i, r.title)
+        log.info("     URL: %s", r.url)
+        if r.snippet:
+            log.info("     Snippet: %s", r.snippet[:200])
+
+
 def cmd_review(args):
     """文章审阅与对比 (Stage 6)"""
     from pipeline.review import run as review_run

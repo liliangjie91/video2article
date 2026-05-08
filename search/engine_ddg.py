@@ -29,9 +29,9 @@ def search(query: str, num_results: int = 5) -> list[SearchResult]:
 
 def _parse_results(html: str, num_results: int) -> list[SearchResult]:
     results = []
-    # DuckDuckGo HTML results are in <div class="result__body"> blocks
+    # DuckDuckGo HTML results are in <div class="... result__body"> blocks
     blocks = re.findall(
-        r'<div class="result__body">.*?</div>\s*</div>\s*</div>', html, re.DOTALL
+        r'<div[^>]*class="[^"]*result__body[^"]*">.*?</div>\s*</div>', html, re.DOTALL
     )
     for block in blocks[:num_results]:
         url_match = re.search(r'href="(https?://[^"]+)"', block)
