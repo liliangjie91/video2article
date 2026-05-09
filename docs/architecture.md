@@ -15,9 +15,15 @@ subtitle.srt / video.mp4 / YouTube URL
    [Stage 1: 预处理]         ← pipeline/preprocess.py   → 01_preprocessed.txt
    [Stage 2: 结构识别]       ← pipeline/structure.py    → 02_structure.json
    [Stage 3: 深度挖掘] ←核心 ← pipeline/insights.py     → 03_insights.json
-        │                       └── search/ (可选联网搜索)
    [Stage 4: 大纲生成]       ← pipeline/outline.py      → 04_outline.json
+        │
+        ├──[--search]──────→ 搜索阶段（基于大纲标题+关键论点生成查询）
+        │                       search/ (Tavily/Brave/DuckDuckGo) → 原始结果
+        │                       search/integrate.py → search_references.json
+        │
    [Stage 5: 逐段合成]       ← pipeline/synthesize.py   → 05_article.md
+        │
+        ├──[--search]──────→ pipeline/link.py (插入引用链接) → 05_article.md
         │
         ▼
    [截图+图文合成]           ← image/screenshot.py      → 06_illustrated.md
@@ -46,12 +52,12 @@ subtitle.srt / video.mp4 / YouTube URL
 | `utils/__init__.py` | 通用工具：`project_dir()`、`detect_input_type()`、文件扩展名判断 |
 | `utils/parser.py` | 字幕解析统一接口，支持 SRT/VTT/Simple 三种格式 |
 | `download/` | 下载模块：YouTube API 直取字幕 + yt-dlp 兜底 |
-| `pipeline/` | 五阶段文章管线 |
+| `pipeline/` | 五阶段文章管线，stage 5 后接 link 后处理 |
+| `pipeline/link.py` | 文章后处理：基于搜索结果插入 `[词](url)` 内联引用链接 |
 | `delivery/` | 文章投送：Telegram、Discord |
 | `image/` | 视频截图 + 图文合成 |
-| `search/` | 联网搜索（Tavily / Brave / DuckDuckGo），Stage 3 可选集成 |
-| `stt/` | 语音转文字 |
-| `tts/` | 文章转语音 |
+| `search/` | 联网搜索（Tavily / Brave / DuckDuckGo），含集成整合模块 |
+| `search/integrate.py` | 搜索结果去重、排序、整合 |
 
 ### Pipeline 模块约定
 
@@ -73,7 +79,8 @@ output/<channel_title>/<uploaddate>_<videoid>/
 ├── 02_structure.json             # Stage 2
 ├── 03_insights.json              # Stage 3 深度挖掘
 ├── 04_outline.json               # Stage 4 大纲
-├── 05_article.md                 # Stage 5 最终文章
+├── search_references.json        # 搜索结果整合（--search 开启时）
+├── 05_article.md                 # Stage 5 初版文章 → link 后插入引用链接
 ├── 06_illustrated.md             # 图文合成（可选）
 ├── screenshots/
 └── llm_logs/

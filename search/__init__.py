@@ -4,7 +4,10 @@ import importlib
 import logging
 import os
 
+from dotenv import load_dotenv
 from config import get_config
+
+load_dotenv()
 
 from ._utils import SearchResult  # noqa: F401
 

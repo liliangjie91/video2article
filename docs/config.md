@@ -81,11 +81,11 @@ engines = tavily,brave,ddg
 
 各引擎按 round-robin 轮询分配查询，均匀消耗 API credit。可用引擎：
 
-| 引擎 | 环境变量 | 是否需要 API Key |
-|------|----------|-----------------|
-| `tavily` | `TAVILY_API_KEY` | 是 |
-| `brave` | `BRAVE_API_KEY` | 是 |
-| `ddg` | 无 | 否（始终可用） |
+| 引擎 | 环境变量 | 是否需要 API Key | 状态 |
+|------|----------|-----------------|------|
+| `tavily` | `TAVILY_API_KEY` | 是 | ✅ 推荐 |
+| `brave` | `BRAVE_API_KEY` | 是 | ✅ 推荐 |
+| `ddg` | 无 | 否（始终可用） | ⚠️ HTML 爬取，不稳定 |
 
 配置了但缺少 API Key 的引擎会自动跳过。
 

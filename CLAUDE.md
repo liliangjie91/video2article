@@ -27,8 +27,11 @@ module.py       # 公开 API，外部通过 from pkg.module import func 导入
 main.py (CLI入口) → commands.py (命令处理 + 流程编排)
                         │
                         ├── download/    (字幕下载/音视频获取)
-                        ├── pipeline/    (五阶段：preprocess → structure → insights → outline → synthesize)
-                        ├── search/      (联网搜索：Tavily、Brave、DuckDuckGo)
+                        ├── pipeline/    (五阶段 + link 后处理)
+                        │   └── link.py  (搜索结果 → 文章插入引用链接)
+                        ├── search/      (联网搜索 + 结果整合)
+                        │   ├── integrate.py (去重/排序/整合)
+                        │   └── engine_*.py (Tavily/Brave/DuckDuckGo)
                         ├── delivery/    (文章投送：Telegram、Discord)
                         ├── image/       (视频截图+图文合成)
                         ├── stt/         (语音转文字)
@@ -48,7 +51,9 @@ main.py (CLI入口) → commands.py (命令处理 + 流程编排)
 
 - `commands:process_one()` — 统一入口，任意输入格式 → 完整 pipeline
 - `commands:process_batch()` — 批量处理循环
-- `commands:_run_article_pipeline()` — SRT → 文章的五阶段管线
+- `commands:_run_article_pipeline()` — SRT → 文章的五阶段管线 + 搜索结果整合 + 链接后处理
+- `search.integrate:search_from_outline()` — 基于大纲生成搜索查询并整合
+- `pipeline.link:run()` — 文章后处理，插入内联引用链接
 
 ## 命名
 

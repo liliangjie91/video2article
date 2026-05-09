@@ -36,6 +36,8 @@ from commands import (  # noqa: E402
     cmd_download,
     cmd_info,
     cmd_insights,
+    cmd_insert_links,
+    cmd_integrate_search,
     cmd_outline,
     cmd_preprocess,
     cmd_review,
@@ -76,6 +78,16 @@ def main():
     pp.add_argument("--engine", "-e", default=None, help="指定搜索引擎 (tavily/brave/ddg)，默认全部可用引擎")
     pp.add_argument("--limit", "-l", type=int, default=5, help="每个引擎返回结果数")
     pp.set_defaults(func=cmd_search)
+
+    pp = debug_sub.add_parser("integrate", help="整合搜索结果（去重、排序）")
+    pp.add_argument("insights", help="03_insights.json 路径")
+    pp.set_defaults(func=cmd_integrate_search)
+
+    pp = debug_sub.add_parser("link", help="在已生成的文章中添加引用链接")
+    pp.add_argument("article", help="05_article.md 路径")
+    pp.add_argument("references", help="search_references.json 路径")
+    pp.add_argument("--tier", choices=["fast", "best", "top"], default="best", help="模型档位")
+    pp.set_defaults(func=cmd_insert_links)
 
     pp = debug_sub.add_parser("preprocess", help="字幕预处理")
     pp.add_argument("subtitle", help="字幕文件路径")
