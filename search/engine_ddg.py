@@ -1,12 +1,15 @@
 """DuckDuckGo search via HTML scrape (no API key needed).
 
-Tries multiple endpoints and User-Agents to work around blocking."""
+Tries multiple endpoints and User-Agents to work around blocking.
+Performs a one-time connectivity check on import; if DuckDuckGo is
+unreachable (e.g. network-level SSL block), search() fails fast."""
 
 import logging
 import re
 import time
 
 import requests
+from requests.exceptions import SSLError, ConnectionError as ReqConnError
 
 from ._utils import SearchResult
 
@@ -25,9 +28,41 @@ _ATTEMPTS = [
     (_LITE_URL, 2, 0),   # 3rd: Lite endpoint, UA[2], no wait
 ]
 
+# One-time connectivity check — if DDG is fundamentally unreachable (SSL block),
+# skip all retries to avoid ~15s of timeouts per search.
+_available: bool = True
+
+
+def _check_connectivity() -> bool:
+    """Return False if DuckDuckGo is unreachable at the transport level."""
+    for url in (_HTML_URL, _LITE_URL):
+        try:
+            resp = requests.get(url, timeout=5)
+            resp.raise_for_status()
+            return True
+        except (SSLError, ReqConnError):
+            continue
+        except Exception:
+            return True  # non-transport errors (4xx, etc.) mean DDG is reachable
+    return False
+
+
+_available = _check_connectivity()
+if not _available:
+    logger.warning(
+        "DuckDuckGo is unreachable on this network (SSL connection failed). "
+        "Remove 'ddg' from config.ini [search] engines or use a proxy."
+    )
+
 
 def search(query: str, num_results: int = 5) -> list[SearchResult]:
-    """Search DuckDuckGo, trying multiple endpoints and User-Agents."""
+    """Search DuckDuckGo, trying multiple endpoints and User-Agents.
+
+    Returns immediately if the one-time connectivity check failed.
+    """
+    if not _available:
+        return []
+
     session = requests.Session()
     adapter = requests.adapters.HTTPAdapter(pool_maxsize=1)
     session.mount("https://", adapter)
