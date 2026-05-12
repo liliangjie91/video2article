@@ -27,6 +27,9 @@ SYSTEM_PROMPT = """你是一位优秀的非虚构长文作者。你的任务是�
 
 def run(subtitle_path: str, output_dir: str, tier: str = "best") -> str:
     """Simple mode: parse subtitle → one-shot LLM call → article. Returns path."""
+    from pipeline._utils import log_banner
+    log_banner("快速产出模式", "Simple")
+
     output_path = os.path.join(output_dir, "04_article_simple.md")
     if os.path.exists(output_path):
         logger.info("Simple article already exists, skipping: %s", output_path)

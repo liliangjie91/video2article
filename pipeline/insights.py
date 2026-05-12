@@ -89,6 +89,9 @@ def _validate_insight(insight: dict) -> list[str]:
 
 def run(structure_path: str, output_dir: str, tier: str = "best") -> str:
     """Run Stage 3. Returns path to 03_insights.json."""
+    from pipeline._utils import log_banner
+    log_banner("Stage 3: 深度挖掘", "Insights")
+
     output_path = os.path.join(output_dir, "03_insights.json")
     if os.path.exists(output_path):
         logger.info("Stage 3 output already exists, skipping: %s", output_path)

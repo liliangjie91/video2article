@@ -41,6 +41,9 @@ SYSTEM_PROMPT = """
 
 def run(subtitle_path: str, output_dir: str, tier: str = "fast") -> str:
     """Run Stage 1. Returns path to 01_preprocessed.txt."""
+    from pipeline._utils import log_banner
+    log_banner("Stage 1: 预处理", "Preprocess")
+
     output_path = os.path.join(output_dir, "01_preprocessed.txt")
     if os.path.exists(output_path):
         logger.info("Stage 1 output already exists, skipping: %s", output_path)

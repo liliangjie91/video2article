@@ -43,6 +43,7 @@ def integrate_search_res(raw_path: str, output_dir: str, tier: str = "fast") -> 
 
     Returns path to ``search_references.json``.
     """
+    logger.info("%s\n  搜索结果整合 (Search Integrate)\n%s", "=" * 55, "=" * 55)
     from llm import chat
 
     output_path = os.path.join(output_dir, "search_references.json")
@@ -100,6 +101,7 @@ def search_from_outline(outline_path: str, output_dir: str, tier: str) -> str | 
 
     Returns path to ``search_raw.json``, or ``None`` if no queries or engines.
     """
+    logger.info("%s\n  联网搜索 (Web Search)\n%s", "=" * 55, "=" * 55)
     raw_search_path = os.path.join(output_dir, "search_raw.json")
     if os.path.exists(raw_search_path):
         logger.info("Stage search raw output already exists, skipping: %s", raw_search_path)

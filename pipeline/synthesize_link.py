@@ -71,6 +71,9 @@ def run(article_path: str, references_path: str, output_dir: str, tier: str = "b
 
     Returns path to the linked article (overwrites original).
     """
+    from pipeline._utils import log_banner
+    log_banner("引用链接插入", "Link Insertion")
+
     with open(article_path, "r", encoding="utf-8") as f:
         article = f.read()
 

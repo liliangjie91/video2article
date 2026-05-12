@@ -60,6 +60,9 @@ SYSTEM_PROMPT = """你是一位资深杂志主编，负责为深度文章制定�
 def run(insights_path: str, output_dir: str, tier: str = "best",
         word_count: int = 5000, style: str = "深度分析") -> str:
     """Run Stage 4 (outline). Returns path to 04_outline.json."""
+    from pipeline._utils import log_banner
+    log_banner("Stage 4: 大纲生成", "Outline")
+
     output_path = os.path.join(output_dir, "04_outline.json")
     if os.path.exists(output_path):
         logger.info("Stage 4 output already exists, skipping: %s", output_path)

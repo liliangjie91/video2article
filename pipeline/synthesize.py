@@ -81,6 +81,9 @@ def _generate_tldr(article_text: str, tier: str) -> str:
 
 def run(insights_path: str, outline_path: str, output_dir: str, tier: str = "best") -> str:
     """Run Stage 5 (outline-driven synthesis). Returns path to 05_article.md."""
+    from pipeline._utils import log_banner
+    log_banner("Stage 5: 逐段合成", "Synthesize")
+
     output_path = os.path.join(output_dir, "05_article.md")
     if os.path.exists(output_path):
         logger.info("Stage 5 output already exists, skipping: %s", output_path)
