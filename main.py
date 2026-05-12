@@ -1,33 +1,16 @@
+#!/usr/bin/env python3
 """CLI entry point for video2article — 字幕 → 深度文章 → 图文"""
 
 import argparse
-import logging
-import logging.handlers
 import os
 import sys
 
 # Add project root to path for internal imports
 sys.path.insert(0, os.path.dirname(__file__))
 
-LOG_DIR = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
+from utils.logging import setup_logging  # noqa: E402
 
-_file_handler = logging.handlers.RotatingFileHandler(
-    os.path.join(LOG_DIR, "video2article.log"),
-    maxBytes=10 * 1024 * 1024,
-    backupCount=5,
-    encoding="utf-8",
-)
-_file_handler.setLevel(logging.DEBUG)
-
-_console_handler = logging.StreamHandler()
-_console_handler.setLevel(logging.INFO)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d: %(message)s",
-    handlers=[_console_handler, _file_handler],
-)
+setup_logging()
 
 from commands import (  # noqa: E402
     cmd_article,

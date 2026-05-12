@@ -14,7 +14,7 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def _run_article_pipeline(
     subtitle_path: str, output_dir: str, tier: str, dry_run: bool, simple: bool = False,
-    search_enabled: bool = False,
+    search_enabled: bool = False, deliver: bool = False,
 ) -> str | None:
     """字幕 → 文章 pipeline。返回文章路径，dry_run 时返回 None。"""
     out = project_dir(subtitle_path, output_dir)
@@ -23,11 +23,14 @@ def _run_article_pipeline(
     flags = [f"Tier: {tier}"]
     if search_enabled:
         flags.append("Search: ON")
+    if deliver:
+        flags.append("Deliver: ON")
     if simple:
         flags.append("Simple: ON")
     if dry_run:
         flags.append("Dry Run: ON")
-    log.info("%s\n  文章生成 Pipeline\n  %s\n%s", "=" * 55, " | ".join(flags), "=" * 55)
+    from utils.logging import log_banner
+    log_banner(f"文章生成 Pipeline  [{', '.join(flags)}]")
     if dry_run:
         log.info("[dry-run] article pipeline would output to: %s", out)
         return None
@@ -77,6 +80,7 @@ def process_one(
     dry_run: bool = False,
     simple: bool = False,
     search_enabled: bool = False,
+    deliver: bool = False,
 ) -> str | None:
     """Process a single input through the full pipeline.
 
@@ -92,14 +96,14 @@ def process_one(
     """
     input_type = detect_input_type(input_str)
     if input_type == "srt":
-        return _run_article_pipeline(input_str, output_dir, tier, dry_run, simple, search_enabled)
+        return _run_article_pipeline(input_str, output_dir, tier, dry_run, simple, search_enabled, deliver)
     if input_type == "media":
         from stt.transcribe import run as stt_run
 
         srt_path = stt_run(input_str)
-        return _run_article_pipeline(srt_path, output_dir, tier, dry_run, simple, search_enabled)
+        return _run_article_pipeline(srt_path, output_dir, tier, dry_run, simple, search_enabled, deliver)
     srt_path = _resolve_subtitle(input_str, output_dir)
-    return _run_article_pipeline(srt_path, output_dir, tier, dry_run, simple, search_enabled)
+    return _run_article_pipeline(srt_path, output_dir, tier, dry_run, simple, search_enabled, deliver)
 
 
 def process_batch(
@@ -163,11 +167,8 @@ def _resolve_subtitle(url: str, output_dir: str | None) -> str:
 
 def cmd_article(args):
     """字幕/音视频/URL → 文章（自动检测输入类型）"""
-    if args.deliver:
-        log.info("%s\n  Deliver: ON\n%s", "=" * 55, "=" * 55)
-
     article_path = process_one(args.input, args.output_dir, args.tier, args.dry_run, args.simple,
-                               search_enabled=args.search)
+                               search_enabled=args.search, deliver=args.deliver)
     if args.deliver and article_path:
         from delivery.deliver import deliver_article
 
@@ -337,7 +338,8 @@ def cmd_batch(args):
         flags.append("Search: ON")
     if args.simple:
         flags.append("Simple: ON")
-    log.info("%s\n  批量处理 Pipeline\n  %s\n%s", "=" * 55, " | ".join(flags), "=" * 55)
+    from utils.logging import log_banner
+    log_banner(f"批量处理 Pipeline  [{' | '.join(flags)}]")
 
     inputs: list[str] = list(args.inputs or [])
     limit = min(args.limit, 100)
@@ -363,7 +365,8 @@ def cmd_batch(args):
 def cmd_deliver(args):
     """投送文章到指定渠道"""
     channels_desc = args.channel or ("all" if args.all else "default")
-    log.info("%s\n  文章投送 (Deliver) — Channel: %s\n%s", "=" * 55, channels_desc, "=" * 55)
+    from utils.logging import log_banner
+    log_banner(f"文章投送 (Deliver) — Channel: {channels_desc}")
     from delivery.deliver import CHANNELS, deliver_article
 
     channels = args.channel or (CHANNELS if args.all else None)
