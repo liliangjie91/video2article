@@ -18,7 +18,16 @@ def _run_article_pipeline(
 ) -> str | None:
     """字幕 → 文章 pipeline。返回文章路径，dry_run 时返回 None。"""
     out = project_dir(subtitle_path, output_dir)
-    log.info("Running article pipeline: %s", out)
+
+    # ── Run summary ───────────────────────────────────────────
+    flags = [f"Tier: {tier}"]
+    if search_enabled:
+        flags.append("Search: ON")
+    if simple:
+        flags.append("Simple: ON")
+    if dry_run:
+        flags.append("Dry Run: ON")
+    log.info("%s\n  文章生成 Pipeline\n  %s\n%s", "=" * 55, " | ".join(flags), "=" * 55)
     if dry_run:
         log.info("[dry-run] article pipeline would output to: %s", out)
         return None
@@ -154,6 +163,9 @@ def _resolve_subtitle(url: str, output_dir: str | None) -> str:
 
 def cmd_article(args):
     """字幕/音视频/URL → 文章（自动检测输入类型）"""
+    if args.deliver:
+        log.info("%s\n  Deliver: ON\n%s", "=" * 55, "=" * 55)
+
     article_path = process_one(args.input, args.output_dir, args.tier, args.dry_run, args.simple,
                                search_enabled=args.search)
     if args.deliver and article_path:
@@ -320,6 +332,13 @@ def cmd_uploads(args):
 
 def cmd_batch(args):
     """批处理：多个输入逐个生成文章"""
+    flags = [f"Tier: {args.tier}"]
+    if args.search:
+        flags.append("Search: ON")
+    if args.simple:
+        flags.append("Simple: ON")
+    log.info("%s\n  批量处理 Pipeline\n  %s\n%s", "=" * 55, " | ".join(flags), "=" * 55)
+
     inputs: list[str] = list(args.inputs or [])
     limit = min(args.limit, 100)
     if args.file:
@@ -343,6 +362,8 @@ def cmd_batch(args):
 
 def cmd_deliver(args):
     """投送文章到指定渠道"""
+    channels_desc = args.channel or ("all" if args.all else "default")
+    log.info("%s\n  文章投送 (Deliver) — Channel: %s\n%s", "=" * 55, channels_desc, "=" * 55)
     from delivery.deliver import CHANNELS, deliver_article
 
     channels = args.channel or (CHANNELS if args.all else None)
