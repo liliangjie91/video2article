@@ -1,35 +1,61 @@
-"""DuckDuckGo search via HTML scrape (no API key needed)."""
+"""DuckDuckGo search via HTML scrape (no API key needed).
+
+Tries multiple endpoints and User-Agents to work around blocking."""
 
 import logging
 import re
+import time
 
 import requests
 
 from ._utils import SearchResult
 
 logger = logging.getLogger(__name__)
-_URL = "https://html.duckduckgo.com/html/"
+
+_HTML_URL = "https://html.duckduckgo.com/html/"
+_LITE_URL = "https://lite.duckduckgo.com/lite/"
+_USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+]
+_ATTEMPTS = [
+    (_HTML_URL, 0, 1),   # 1st: HTML endpoint, UA[0], wait 1s
+    (_HTML_URL, 1, 2),   # 2nd: HTML endpoint, UA[1], wait 2s
+    (_LITE_URL, 2, 0),   # 3rd: Lite endpoint, UA[2], no wait
+]
 
 
 def search(query: str, num_results: int = 5) -> list[SearchResult]:
-    """Search DuckDuckGo via the HTML endpoint."""
-    try:
-        resp = requests.post(
-            _URL,
-            data={"q": query},
-            headers={"User-Agent": "Mozilla/5.0 (compatible; video2article/1.0)"},
-            timeout=15,
-        )
-        resp.raise_for_status()
-        return _parse_results(resp.text, num_results)
-    except Exception as e:
-        logger.warning("DuckDuckGo search failed: %s", e)
-        return []
+    """Search DuckDuckGo, trying multiple endpoints and User-Agents."""
+    session = requests.Session()
+    adapter = requests.adapters.HTTPAdapter(pool_maxsize=1)
+    session.mount("https://", adapter)
+
+    for url, ua_idx, wait in _ATTEMPTS:
+        try:
+            resp = session.post(
+                url,
+                data={"q": query},
+                headers={"User-Agent": _USER_AGENTS[ua_idx]},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            results = _parse_html(resp.text, num_results) if "html." in url else _parse_lite(resp.text, num_results)
+            if results:
+                return results
+        except Exception as e:
+            logger.warning("DuckDuckGo %s attempt failed: %s", url.split("/")[2], e)
+            if wait:
+                time.sleep(wait)
+
+    logger.warning("DuckDuckGo search failed after all %d attempts", len(_ATTEMPTS))
+    return []
 
 
-def _parse_results(html: str, num_results: int) -> list[SearchResult]:
+def _parse_html(html: str, num_results: int) -> list[SearchResult]:
+    """Parse the full HTML endpoint (html.duckduckgo.com/html/)."""
     results = []
-    # DuckDuckGo HTML results are in <div class="... result__body"> blocks
     blocks = re.findall(
         r'<div[^>]*class="[^"]*result__body[^"]*">.*?</div>\s*</div>', html, re.DOTALL
     )
@@ -47,5 +73,34 @@ def _parse_results(html: str, num_results: int) -> list[SearchResult]:
         )
         snippet = re.sub(r"<[^>]+>", "", snippet_match.group(1)).strip() if snippet_match else ""
 
-        results.append(SearchResult(title=title, url=url, snippet=snippet))
+        if url:
+            results.append(SearchResult(title=title, url=url, snippet=snippet))
+    return results
+
+
+def _parse_lite(html: str, num_results: int) -> list[SearchResult]:
+    """Parse the lite endpoint (lite.duckduckgo.com/lite/).
+
+    Lite returns a table-based layout: each result is a <tr> with
+    .result-link (title+url) and .result-snippet rows.
+    """
+    results = []
+    # Find all result blocks wrapped in <tbody>
+    sections = re.findall(
+        r'<tbody[^>]*class="[^"]*result[^"]*"[^>]*>.*?</tbody>', html, re.DOTALL
+    )
+    for section in sections[:num_results]:
+        url_match = re.search(r'href="(https?://[^"]+)"', section)
+        url = url_match.group(1) if url_match else ""
+
+        title_match = re.search(r'<a[^>]*>(.*?)</a>', section, re.DOTALL)
+        title = re.sub(r"<[^>]+>", "", title_match.group(1)).strip() if title_match else ""
+
+        snippet_match = re.search(
+            r'<td class="result-snippet">(.*?)</td>', section, re.DOTALL
+        )
+        snippet = re.sub(r"<[^>]+>", "", snippet_match.group(1)).strip() if snippet_match else ""
+
+        if url:
+            results.append(SearchResult(title=title, url=url, snippet=snippet))
     return results
