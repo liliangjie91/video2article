@@ -69,10 +69,15 @@ def run(article_path: str, references_path: str, output_dir: str, tier: str = "b
     to insert ``[word](url)`` links where relevant.  Tracks used URLs across
     sections to avoid duplicate links.  Appends a ``参考资料`` section at end.
 
-    Returns path to the linked article (overwrites original).
+    Returns path to ``05_article_link.md`` (new file, does NOT overwrite original).
     """
     from pipeline._utils import log_banner
     log_banner("引用链接插入", "Link Insertion")
+
+    output_path = os.path.join(output_dir, "05_article_link.md")
+    if os.path.exists(output_path):
+        logger.info("Linked article already exists, skipping: %s", output_path)
+        return output_path
 
     with open(article_path, "r", encoding="utf-8") as f:
         article = f.read()
@@ -95,7 +100,7 @@ def run(article_path: str, references_path: str, output_dir: str, tier: str = "b
     for i, r in enumerate(refs[:15], 1):
         ref_block_lines.append(f"{i}. [{r['title']}]({r['url']})")
         if r.get("snippet"):
-            ref_block_lines.append(f"   {r['snippet'][:300]}")
+            ref_block_lines.append(f"   {r['snippet'][:600]}")
     ref_block = "\n".join(ref_block_lines)
 
     # Process article section by section, tracking used URLs and linked words
@@ -145,8 +150,8 @@ def run(article_path: str, references_path: str, output_dir: str, tier: str = "b
     # Append references section
     linked_article = _append_references(linked_article, url_title, used_urls)
 
-    with open(article_path, "w", encoding="utf-8") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write(linked_article)
 
-    logger.info("Link insertion complete: %s (%d unique URLs cited)", article_path, len(used_urls))
-    return article_path
+    logger.info("Link insertion complete: %s (%d unique URLs cited)", output_path, len(used_urls))
+    return output_path

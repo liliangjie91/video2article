@@ -2,6 +2,7 @@
 
 import importlib
 import logging
+import os
 import re
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,13 @@ def deliver_article(
     """
     if channels is None:
         channels = _default_channels()
+
+    # Prefer 05_article_link.md (with citation links) over the bare article
+    base, name = os.path.split(article_path)
+    link_path = os.path.join(base, "05_article_link.md")
+    if name == "05_article.md" and os.path.exists(link_path):
+        article_path = link_path
+        logger.info("Found linked article, delivering %s instead", link_path)
 
     with open(article_path, "r", encoding="utf-8") as f:
         text = f.read()
