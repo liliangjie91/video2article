@@ -80,7 +80,7 @@ def main():
     pp.set_defaults(func=cmd_search)
 
     pp = debug_sub.add_parser("integrate", help="整合搜索结果（去重、排序）")
-    pp.add_argument("insights", help="03_insights.json 路径")
+    pp.add_argument("raw_search", help="search_raw.json 路径（来自 debug search 或 search_from_outline）")
     pp.set_defaults(func=cmd_integrate_search)
 
     pp = debug_sub.add_parser("link", help="在已生成的文章中添加引用链接")

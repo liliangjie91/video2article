@@ -40,14 +40,16 @@ def _run_article_pipeline(
     # ── Outline-based search (independent of synthesize) ─────────
     refs_path = None
     if search_enabled:
-        from search.integrate import search_from_outline
-        refs_path = search_from_outline(oln, out, tier)
+        from search.integrate import search_from_outline, integrate_search_res
+        raw_path = search_from_outline(oln, out, tier)
+        if raw_path:
+            refs_path = integrate_search_res(raw_path, out, tier)
 
     syn = synthesize.run(ins, oln, out, tier=tier)
 
     # ── Link insertion post-processing ───────────────────────────
     if refs_path:
-        from pipeline.link import run as link_run
+        from pipeline.synthesize_link import run as link_run
 
         syn = link_run(syn, refs_path, out, tier=tier)
         log.info("Link insertion complete: %s", syn)
@@ -223,17 +225,17 @@ def cmd_search(args):
 
 
 def cmd_integrate_search(args):
-    """调试：整合搜索结果（从 insights.json 中提取去重、排序）"""
-    from search.integrate import run as integrate_run
+    """调试：整合搜索结果（从 search_raw.json 中提取去重、排序）"""
+    from search.integrate import integrate_search_res as integrate_run
 
-    out = os.path.dirname(os.path.abspath(args.insights))
-    refs_path = integrate_run(args.insights, out)
+    out = os.path.dirname(os.path.abspath(args.raw_search))
+    refs_path = integrate_run(args.raw_search, out)
     log.info("Search references: %s", refs_path)
 
 
 def cmd_insert_links(args):
     """调试：在已生成的文章中添加引用链接"""
-    from pipeline.link import run as link_run
+    from pipeline.synthesize_link import run as link_run
 
     out = os.path.dirname(os.path.abspath(args.article))
     linked = link_run(args.article, args.references, out, tier=args.tier)
