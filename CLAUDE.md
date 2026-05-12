@@ -38,7 +38,7 @@ main.py (CLI入口) → commands.py (命令处理 + 流程编排)
                         ├── tts/         (文章转语音)
                         ├── llm.py       (LLM 封装，自动 fallback)
                         ├── config.py    (两级配置加载)
-                        └── utils/       (通用工具：字幕解析、路径、类型检测)
+                        └── utils/       (通用工具：路径、类型检测、日志配置、log_banner)
 ```
 
 详见 [docs/architecture.md](docs/architecture.md)。
@@ -53,7 +53,7 @@ main.py (CLI入口) → commands.py (命令处理 + 流程编排)
 - `commands:process_batch()` — 批量处理循环
 - `commands:_run_article_pipeline()` — SRT → 文章的五阶段管线 + 搜索结果整合 + 链接后处理
 - `search.integrate:search_from_outline()` — 从 outline search_queries 执行检索并整合
-- `pipeline.synthesize_link:run()` — 文章后处理，插入内联引用链接（跨段落同词不重复）
+- `pipeline.synthesize_link:run()` — 文章后处理，插入内联引用链接（跨段落同词不重复），输出 `05_article_link.md`
 
 ## 命名
 

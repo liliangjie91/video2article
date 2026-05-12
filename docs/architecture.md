@@ -25,8 +25,8 @@ subtitle.srt / video.mp4 / YouTube URL
         │
    [Stage 5: 逐段合成]       ← pipeline/synthesize.py   → 05_article.md
         │
-        ├──[--search]──────→ pipeline/synthesize_link.py (插入引用链接) → 05_article.md
-        │                      └── 跨段落去重，同词不重复链接
+        ├──[--search]──────→ pipeline/synthesize_link.py (插入引用链接) → 05_article_link.md
+        │                      └── 不覆盖原文，跨段落同词不重复链接
         │
         ▼
    [截图+图文合成]           ← image/screenshot.py      → 06_illustrated.md
@@ -49,7 +49,7 @@ subtitle.srt / video.mp4 / YouTube URL
         │
    [Stage 5: 逐段合成]       ← pipeline/synthesize.py   → 05_article.md
         │
-        ├──[--search]──────→ pipeline/synthesize_link.py (插入引用链接) → 05_article.md
+        ├──[--search]──────→ pipeline/synthesize_link.py (插入引用链接) → 05_article_link.md
         │
         ▼
    [截图+图文合成]           ← image/screenshot.py      → 06_illustrated.md
@@ -71,15 +71,16 @@ subtitle.srt / video.mp4 / YouTube URL
 
 | 模块 | 职责 |
 |------|------|
-| `main.py` | 薄 CLI 入口，仅 logging + argparse，命令分发到 `commands.py` |
+| `main.py` | 薄 CLI 入口，初始化日志 + argparse，命令分发到 `commands.py` |
 | `commands.py` | 命令处理函数 (`cmd_*`) + 核心流程 (`process_one`, `process_batch`) |
 | `llm.py` | LLM 封装，`chat()` 透传 config 给 litellm，主模型失败自动 fallback |
 | `config.py` | 两级配置加载 (`fast`/`best`) |
 | `utils/__init__.py` | 通用工具：`project_dir()`、`detect_input_type()`、文件扩展名判断 |
+| `utils/logging.py` | 集中日志配置（文件 + 控制台）、`log_banner()` 醒目标识 |
 | `utils/parser.py` | 字幕解析统一接口，支持 SRT/VTT/Simple 三种格式 |
 | `download/` | 下载模块：YouTube API 直取字幕 + yt-dlp 兜底 |
 | `pipeline/` | 五阶段文章管线，stage 3 附带搜索词生成，stage 4 附带搜索词筛选 |
-| `pipeline/synthesize_link.py` | 文章后处理：基于搜索结果插入 `[词](url)` 内联引用链接，跨段落同词不重复 |
+| `pipeline/synthesize_link.py` | 文章后处理：基于搜索结果插入 `[词](url)` 内联引用链接，跨段落同词不重复，输出 `05_article_link.md` 不覆盖原文 |
 | `delivery/` | 文章投送：Telegram、Discord |
 | `image/` | 视频截图 + 图文合成 |
 | `search/` | 联网搜索（Tavily / Brave / DuckDuckGo），含集成整合模块 |
@@ -95,7 +96,7 @@ subtitle.srt / video.mp4 / YouTube URL
 - **`commands:process_batch()`** — 批量处理核心循环
 - **`commands:_run_article_pipeline()`** — SRT → 文章的五阶段管线 + 搜索结果整合 + 链接后处理
 - **`search.integrate:search_from_outline()`** — 从 outline search_queries 执行检索并整合
-- **`pipeline.synthesize_link:run()`** — 文章后处理，插入内联引用链接，跨段落去重
+- **`pipeline.synthesize_link:run()`** — 文章后处理，插入内联引用链接，跨段落去重，输出 `05_article_link.md`
 
 ## 输出结构
 
@@ -108,7 +109,8 @@ output/<channel_title>/<uploaddate>_<videoid>/
 ├── 03_insights.json              # Stage 3 深度挖掘
 ├── 04_outline.json               # Stage 4 大纲
 ├── search_references.json        # 搜索结果整合（--search 开启时）
-├── 05_article.md                 # Stage 5 初版文章 → link 后插入引用链接
+├── 05_article.md                 # Stage 5 初版文章
+├── 05_article_link.md            # 引用链接版本（--search 开启时，不覆盖 05_article.md）
 ├── 06_illustrated.md             # 图文合成（可选）
 ├── screenshots/
 └── llm_logs/
