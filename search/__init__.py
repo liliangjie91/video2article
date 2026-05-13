@@ -68,10 +68,14 @@ def search(query: str, engines: list[str] | None = None, num_results: int = 5) -
         mod = importlib.import_module(mod_path)
         results = mod.search(query, num_results)
         logger.info("'%s' returned %d results for: %s", engine_name, len(results), query[:80])
-        return results
     except Exception as e:
         logger.warning("'%s' failed: %s — trying fallback", engine_name, e)
+        results = []
+
+    if not results:
         remaining = [e for i, e in enumerate(engines) if i != idx]
         if remaining:
+            logger.info("'%s' returned 0 results, trying next engine", engine_name)
             return search(query, remaining, num_results)
-        return []
+
+    return results

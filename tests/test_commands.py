@@ -10,13 +10,14 @@ class TestRunArticlePipeline:
         mocker.patch("pipeline.structure.run", return_value=str(tmp_path / "02_structure.json"))
         mocker.patch("pipeline.insights.run", return_value=str(tmp_path / "03_insights.json"))
         mocker.patch("pipeline.outline.run", return_value=str(tmp_path / "04_outline.json"))
-        mock_syn = mocker.patch("pipeline.synthesize.run", return_value=str(tmp_path / "05_article.md"))
+        mocker.patch("pipeline.synthesize.run", return_value=str(tmp_path / "05_article.md"))
+        mocker.patch("pipeline.finalize.run", return_value=str(tmp_path / "05_article_link.md"))
 
         srt = tmp_path / "test.srt"
         srt.write_text("1\n00:00:01,000 --> 00:00:02,000\nHello.\n", encoding="utf-8")
 
         result = _run_article_pipeline(str(srt), str(tmp_path), "best", dry_run=False)
-        assert result == str(tmp_path / "05_article.md")
+        assert result == str(tmp_path / "05_article_link.md")
 
     def test_simple_mode(self, tmp_path, mocker):
         mock_preprocess = mocker.patch("pipeline.preprocess.run")

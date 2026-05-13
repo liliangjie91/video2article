@@ -15,7 +15,7 @@ subtitle.srt / video.mp4 / YouTube URL
    [Stage 1: 预处理]         ← pipeline/preprocess.py   → 01_preprocessed.txt
    [Stage 2: 结构识别]       ← pipeline/structure.py    → 02_structure.json
    [Stage 3: 深度挖掘] ←核心 ← pipeline/insights.py     → 03_insights.json
-        │                      └── 每段附带 concept_queries + explore_queries
+        │                      └── 每段附带 concept_queries 概念词
    [Stage 4: 大纲生成]       ← pipeline/outline.py      → 04_outline.json
         │                      └── LLM 对搜索词去重筛选 → search_queries
         │
@@ -25,9 +25,9 @@ subtitle.srt / video.mp4 / YouTube URL
         │
    [Stage 5: 逐段合成]       ← pipeline/synthesize.py   → 05_article.md
         │
-        ├──[--search]──────→ pipeline/synthesize_link.py (插入引用链接) → 05_article_link.md
-        │                      └── 不覆盖原文，跨段落同词不重复链接
-        │
+        ▼
+   [后处理: TL;DR + 引用链接] ← pipeline/finalize.py    → 05_article_link.md
+        │                      └── 始终生成 TL;DR，--search 时额外插入引用链接
         ▼
    [截图+图文合成]           ← image/screenshot.py      → 06_illustrated.md
         │
@@ -43,29 +43,9 @@ subtitle.srt / video.mp4 / YouTube URL
 - **背景补充** — 相关的历史、科学或文化背景
 - **延伸关联** — 和其他事件/理论的联系
 - **批判追问** — 换个视角能看到什么
-- **搜索建议** — 生成 concept_queries（实体词，查百科）+ explore_queries（探索短语，深度追问）
+- **搜索建议** — 生成 concept_queries（专有名词、事件、人名等有检索价值的词）
 
 这些搜索词在 Stage 4（大纲）阶段由 LLM 统一去重筛选，最终由 search/integrate 执行检索。
-        │
-   [Stage 5: 逐段合成]       ← pipeline/synthesize.py   → 05_article.md
-        │
-        ├──[--search]──────→ pipeline/synthesize_link.py (插入引用链接) → 05_article_link.md
-        │
-        ▼
-   [截图+图文合成]           ← image/screenshot.py      → 06_illustrated.md
-        │
-        ▼
-   [TTS: 文章→语音]          ← tts/speak.py (可选后置)
-```
-
-### Stage 3 是核心
-
-结构识别只是分段落，Stage 3 对每段做五个维度分析：
-- **核心提炼** — 一句话说清楚本段在说什么
-- **隐含假设** — 说话者默认了什么前提
-- **背景补充** — 相关的历史、科学或文化背景
-- **延伸关联** — 和其他事件/理论的联系
-- **批判追问** — 换个视角能看到什么
 
 ## 模块职责
 
@@ -80,7 +60,7 @@ subtitle.srt / video.mp4 / YouTube URL
 | `utils/parser.py` | 字幕解析统一接口，支持 SRT/VTT/Simple 三种格式 |
 | `download/` | 下载模块：YouTube API 直取字幕 + yt-dlp 兜底 |
 | `pipeline/` | 五阶段文章管线，stage 3 附带搜索词生成，stage 4 附带搜索词筛选 |
-| `pipeline/synthesize_link.py` | 文章后处理：基于搜索结果插入 `[词](url)` 内联引用链接，跨段落同词不重复，输出 `05_article_link.md` 不覆盖原文 |
+| `pipeline/finalize.py` | 文章后处理：生成 TL;DR + 引用链接插入，始终输出 `05_article_link.md` |
 | `delivery/` | 文章投送：Telegram、Discord |
 | `image/` | 视频截图 + 图文合成 |
 | `search/` | 联网搜索（Tavily / Brave / DuckDuckGo），含集成整合模块 |
@@ -96,7 +76,7 @@ subtitle.srt / video.mp4 / YouTube URL
 - **`commands:process_batch()`** — 批量处理核心循环
 - **`commands:_run_article_pipeline()`** — SRT → 文章的五阶段管线 + 搜索结果整合 + 链接后处理
 - **`search.integrate:search_from_outline()`** — 从 outline search_queries 执行检索并整合
-- **`pipeline.synthesize_link:run()`** — 文章后处理，插入内联引用链接，跨段落去重，输出 `05_article_link.md`
+- **`pipeline.finalize:run()`** — 文章后处理：生成 TL;DR + 引用链接插入，输出 `05_article_link.md`
 
 ## 输出结构
 
@@ -110,7 +90,7 @@ output/<channel_title>/<uploaddate>_<videoid>/
 ├── 04_outline.json               # Stage 4 大纲
 ├── search_references.json        # 搜索结果整合（--search 开启时）
 ├── 05_article.md                 # Stage 5 初版文章
-├── 05_article_link.md            # 引用链接版本（--search 开启时，不覆盖 05_article.md）
+├── 05_article_link.md            # 最终版文章（TL;DR，--search 时含引用链接）
 ├── 06_illustrated.md             # 图文合成（可选）
 ├── screenshots/
 └── llm_logs/

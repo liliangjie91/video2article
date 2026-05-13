@@ -20,7 +20,7 @@ def _run_article_pipeline(
     out = project_dir(subtitle_path, output_dir)
 
     # ── Run summary ───────────────────────────────────────────
-    flags = [f"Tier: {tier}"]
+    flags = [f"LLM Tier: {tier}"]
     if search_enabled:
         flags.append("Search: ON")
     if deliver:
@@ -49,6 +49,11 @@ def _run_article_pipeline(
     ins = insights.run(st, out, tier=tier)
     oln = outline.run(ins, out, tier=tier)
 
+    # ── Query refinement ────────────────────────────────────────────
+    if search_enabled:
+        from search.query_gen import run as query_gen
+        query_gen(oln, tier=tier)
+
     # ── Outline-based search (independent of synthesize) ─────────
     refs_path = None
     if search_enabled:
@@ -59,12 +64,9 @@ def _run_article_pipeline(
 
     syn = synthesize.run(ins, oln, out, tier=tier)
 
-    # ── Link insertion post-processing ───────────────────────────
-    if refs_path:
-        from pipeline.synthesize_link import run as link_run
-
-        syn = link_run(syn, refs_path, out, tier=tier)
-        log.info("Link insertion complete: %s", syn)
+    # ── Link + TL;DR post-processing ─────────────────────────────
+    from pipeline.finalize import run as link_run
+    syn = link_run(syn, out, tier=tier, references_path=refs_path)
 
     log.info("Article complete: %s", syn)
     return syn
@@ -248,10 +250,10 @@ def cmd_integrate_search(args):
 
 def cmd_insert_links(args):
     """调试：在已生成的文章中添加引用链接"""
-    from pipeline.synthesize_link import run as link_run
+    from pipeline.finalize import run as link_run
 
     out = os.path.dirname(os.path.abspath(args.article))
-    linked = link_run(args.article, args.references, out, tier=args.tier)
+    linked = link_run(args.article, out, tier=args.tier, references_path=args.references)
     log.info("Link insertion: %s", linked)
 
 

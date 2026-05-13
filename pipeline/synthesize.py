@@ -58,27 +58,6 @@ def _build_structure_guide(word_count: int | None, key_points: list[str]) -> str
     return "\n".join(lines)
 
 
-def _generate_tldr(article_text: str, tier: str) -> str:
-    """Generate a brief TL;DR of the full article (≤200 chars)."""
-    prompt = (
-        f"请用一段话概括以下文章的核心内容，200字以内，不要加标题或前缀：\n\n"
-        f"{article_text}"
-    )
-    tl_dr = chat(prompt, tier=tier, system="你是一位精炼的摘要写手。", step=5)
-    tl_dr = tl_dr.strip()
-    was_truncated = len(tl_dr) > 200
-    tl_dr = tl_dr[:200]
-    # Truncate at last sentence boundary to avoid mid-sentence cut
-    for sep in ("。", "！", "？"):
-        idx = tl_dr.rfind(sep)
-        if idx > 20:  # at least 20 chars to keep meaningful content
-            tl_dr = tl_dr[: idx + 1]
-            break
-    if was_truncated:
-        tl_dr += "……"
-    return tl_dr
-
-
 def run(insights_path: str, outline_path: str, output_dir: str, tier: str = "best") -> str:
     """Run Stage 5 (outline-driven synthesis). Returns path to 05_article.md."""
     from pipeline._utils import log_banner
@@ -147,13 +126,6 @@ def run(insights_path: str, outline_path: str, output_dir: str, tier: str = "bes
         result = chat(prompt, tier=tier, system=SYSTEM_PROMPT, step=5)
         article_parts.extend(["", result])
     
-    # TL;DR summary
-    body_text = "\n".join(article_parts)
-    tl_dr = _generate_tldr(body_text, tier)
-    # Insert between title and first segment: [title, "", tl_dr, "", seg1, ...]
-    article_parts.insert(2, f"> **TL;DR** {tl_dr}")
-    article_parts.insert(3, "")
-
     # Source attribution
     source_url = _find_source_url(output_dir)
     if source_url:
