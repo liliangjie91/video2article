@@ -7,7 +7,7 @@ import os
 _LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
 
 
-def _file_handler() -> logging.Handlers:
+def _file_handler() -> logging.Handler:
     os.makedirs(_LOG_DIR, exist_ok=True)
     return logging.handlers.RotatingFileHandler(
         os.path.join(_LOG_DIR, "video2article.log"),
